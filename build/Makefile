@@ -32,7 +32,7 @@ libbpf:$(LIBBPF_OBJ)
 $(LIBBPF_OBJ):$(LIBBPF_SRC)/Makefile
 	make -C $(LIBBPF_SRC) BUILD_STATIC_ONLY=1 DESTDIR=$(LIBBPF_SRC)/../../build OBJDIR=$(dir $@) INCLUDEDIR=$(HEADER_DIR)  LIBDIR=$(HEADER_DIR) install
 	
-$(SRCDIR)/Makefile:
+$(LIBBPF_SRC)/Makefile:
 	git submodule update --init --recursive 
 
 
