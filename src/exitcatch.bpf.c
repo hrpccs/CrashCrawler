@@ -6,7 +6,7 @@
 #define TASK_COMM_LEN 16
 
 SEC("tracepoint/sched/sched_process_exit") // the path in the debugfs
-int tracepoint__sched__sched_process_exit(struct trace_event_raw_sched_process_exit *ctx)
+int tracepoint__sched__sched_process_exit(void *ctx)
 {
 	struct {
 		__u64 start_time;

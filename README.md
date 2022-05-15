@@ -6,6 +6,10 @@ We build this CrashCrawler application with C and eBPF program with libbpf with 
 
 To compile this project, you need libbpf with CO-RE and a linux kernel that supports eBPF and provide BTF 
 
+### Develop document
+
+check [阶段性开发文档.md](doc\阶段性开发文档.md) 
+
 ### libbpf with CO-RE
 
 To use BTF and CO-RE, `CONFIG_DEBUG_INFO_BTF=y` and `CONFIG_DEBUG_INFO_BTF_MODULES=y` need to be enabled. If you don't want to rebuild the kernel, the following distos have enabled those options by default:
@@ -32,14 +36,20 @@ https://github.com/microsoft/WSL2-Linux-Kernel
 https://gist.github.com/MarioHewardt/5759641727aae880b29c8f715ba4d30f
 ```
 
+### Build and Run our demo
+
+```bash
+git clone https://gitlab.eduxiji.net/fuhengyu/sysu-proj160.git
+cd build
+make build -j 4
+sudo ./exitcatch
+```
+
 ### BTF for distribution 
 
 If you want to install this application for another machine with different kernel version, you may change the default BTF path for the BTFGen, which will generate a min_size_BTF file you need for supporting eBPF program on target machine. Check [this](https://kinvolk.io/blog/2022/03/btfgen-one-step-closer-to-truly-portable-ebpf-programs/) for more details for BTF. 
 
-Below are just for *CrashCrawler*:
-
-```bash
-```
+*CrashCrawler* will support this sooner or later.
 
 
 

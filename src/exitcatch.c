@@ -2,7 +2,7 @@
 #include <bpf/libbpf.h>
 #include <sys/resource.h>
 #include <stdarg.h>
-#include "hello.skel.h"
+#include "exitcatch.skel.h"
 #ifdef  DEBUG
 #define FLAGS_bpf_libbpf_debug 1
 #else
@@ -17,7 +17,7 @@ int print_libbpf_log(enum libbpf_print_level lvl, const char * fmt,va_list args)
 
 
 int main(int argc,char** argv){
-    struct hello_bpf * obj;
+    struct exitcatch_bpf * obj;
     int err = 0;
     //set the memory limit for BPF program 
     struct rlimit rlim = {
@@ -32,19 +32,19 @@ int main(int argc,char** argv){
         fprintf(stderr,"failed to change rlimit\n");
         return 1;
     }
-    obj = hello_bpf__open();
+    obj = exitcatch_bpf__open();
 	if (!obj) {
 		fprintf(stderr, "failed to open and/or load BPF object\n");
 		return 1;
 	}
 
-	err = hello_bpf__load(obj);
+	err = exitcatch_bpf__load(obj);
 	if (err) {
 		fprintf(stderr, "failed to load BPF object %d\n", err);
 		goto cleanup;
 	}
 
-	err = hello_bpf__attach(obj);
+	err = exitcatch_bpf__attach(obj);
 	if (err) {
 		fprintf(stderr, "failed to attach BPF programs\n");
 		goto cleanup;
@@ -58,6 +58,6 @@ int main(int argc,char** argv){
 	system("cat /sys/kernel/debug/tracing/trace_pipe");
     return 0;
 cleanup:
-    hello_bpf__destroy(obj);
+    exitcatch_bpf__destroy(obj);
     return err != 0;
 }
