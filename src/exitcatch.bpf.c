@@ -19,7 +19,8 @@ struct {
 	__uint(max_entries,8192);
 } map_stack_traces SEC(".maps");
 
-SEC("tp/sched/sched_process_exit") // the path in the debugfs, and debugfs need to be mounted
+// the path in the debugfs, and debugfs need to be mounted
+SEC("tp/sched/sched_process_exit") 
 int trace_event_raw_sched_process_exit(struct trace_event_raw_sched_process *ctx)
 {
 	struct task_struct *task;
