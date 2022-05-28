@@ -1,14 +1,18 @@
-#ifndef HELLO_H
-#define HELLO_H
-#include "vmlinux.h"
+#ifndef EXITCATCH_H
+#define EXITCATCH_H
 
+#define MAX_STACK_DEPTH 20
 #define TASK_COMM_LEN 16
-
+#define VALUESIZE  MAX_STACK_DEPTH * sizeof(size_t)
 
 struct event{
-    u32 pid;
-    char pcomm[TASK_COMM_LEN];
-    u32 exitcode;
+		pid_t pid;
+		pid_t tid;
+		pid_t ppid;
+		int sig;
+		int exit_code;
+		char comm[TASK_COMM_LEN];
+		unsigned long stack_id;
 };
 
 
