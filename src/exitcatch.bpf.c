@@ -39,8 +39,10 @@ int trace_event_raw_sched_process_exit(struct trace_event_raw_sched_process *ctx
 		e->stack_id = bpf_get_stackid(ctx,&map_stack_traces,0);
 		e->exit_code = exitcode >> 8;
 		e->sig = exitcode & 0xff;
-		e->pid = BPF_CORE_READ(task,pid);
-		e->tid = BPF_CORE_READ(task,tgid);
+		// e->pid = BPF_CORE_READ(task,pid);
+		// e->tid = BPF_CORE_READ(task,tgid);
+		e->pid = BPF_CORE_READ(task,tgid);
+		e->tid = BPF_CORE_READ(task,pid);
 		e->ppid = BPF_CORE_READ(task,parent,pid);
 		bpf_get_current_comm(&(e->comm),TASK_COMM_LEN);
 		bpf_ringbuf_submit(e,0);
