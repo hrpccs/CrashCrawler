@@ -40,4 +40,4 @@ $(LIBBPF_SRC)/Makefile:
 clean:
 	rm -rf $(target) *.o ../src/$(target).skel.h 
 cleanall:
-	rm -rf $(target) *.o ../src/$(target).skel.h libbpf.* staticobjs ../src/libbpf/usr/include ../src/vmlinux.h
+	rm -rf $(target) *.o ../src/$(target).skel.h libbpf.* staticobjs ../src/libbpf/usr/include ../src/vmlinux.h ../crashtest/*.bin
