@@ -1,4 +1,5 @@
 INCLUDE_PATH := -I/usr/include -I../src -I/usr/include/x86_64-linux-gnu -I../src/libbpf/usr/include
+INCLUDE_PATH += -I../src/ourLib
 bpftool := $(shell which bpftool || ../tools/bpftool)
 LIBBPF_OBJ := $(abspath ./libbpf.a)
 LIBBPF_SRC := $(abspath ../libbpf/src)
