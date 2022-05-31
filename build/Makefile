@@ -5,7 +5,7 @@ LIBBPF_OBJ := $(abspath ./libbpf.a)
 LIBBPF_SRC := $(abspath ../libbpf/src)
 CFLAGS := -g -O2
 SRCDIR := $(abspath ../src)
-target := exitcatch
+target := exitcatch.bin
 SRC_TARGET := $(SRCDIR)/$(target)
 HEADER_DIR := /../src/libbpf/usr/include
 
