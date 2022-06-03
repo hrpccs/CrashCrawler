@@ -81,13 +81,13 @@ static void initializeSym()
         ++symList.length;
     }
 }
-static int quiSymbol(long int quiry)
+static int quiSymbol(long int query)
 {
     int left = 0, right = symList.length;
     while (left < right)
     {
         int mid = (left + right) / 2;
-        if(symList.nodeArray[mid].address >= quiry)
+        if(symList.nodeArray[mid].address >= query)
             right = mid;
         else
             left = mid + 1;
@@ -98,13 +98,13 @@ static int quiSymbol(long int quiry)
 int main()
 {
     initializeSym();
-    printf("Finished Readin...\n");
-    unsigned long int quiry = 0;
+    printf("Finished initializing...\n");
+    unsigned long int query = 0;
     for (int i = 0; i < 1; i++)
     {
-        scanf("%lx", &quiry);
-        int left = quiSymbol(quiry);
-        printf("%#lx %s+%#lx\n", symList.nodeArray[left].address,symList.nodeArray[left].name, quiry - symList.nodeArray[left].address);
+        scanf("%lx", &query);
+        int left = quiSymbol(query);
+        printf("%#lx %s+%#lx\n", symList.nodeArray[left].address,symList.nodeArray[left].name, query - symList.nodeArray[left].address);
     }
     return 0;
 }

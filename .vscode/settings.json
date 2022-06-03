@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "exitcatch.h": "c",
+        "color.h": "c"
+    }
+}
