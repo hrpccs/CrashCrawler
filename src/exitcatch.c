@@ -107,7 +107,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		{
 			break;
 		}
-		printf("    0x%lx\n", stack);
+		printf("    %#lx\n", stack);
 	}
 
 	return 0;
