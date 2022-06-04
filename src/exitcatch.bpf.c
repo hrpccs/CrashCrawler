@@ -21,17 +21,18 @@ struct {
 
 // the path in the debugfs, and debugfs need to be mounted
 SEC("tp/sched/sched_process_exit") 
-int trace_event_raw_sched_process_exit(struct trace_event_raw_sched_process *ctx)
-{
+int trace_event_raw_sched_process_exit(void *ctx)
+{	
 	struct task_struct *task;
 	struct vm_area_struct *vma;
 	struct file *file;
+	struct path filepath;
 	struct event *e;
 
 
 	// get information in task_struct
 	task = (struct task_struct *)bpf_get_current_task();
-	vma = BPF_CORE_READ(task->mm->mmap)
+	vma = BPF_CORE_READ(task,mm,mmap);
 
 	long long temp = 0;
 	int exitcode = BPF_CORE_READ(task,exit_code);
@@ -49,22 +50,28 @@ int trace_event_raw_sched_process_exit(struct trace_event_raw_sched_process *ctx
 		e->tid = BPF_CORE_READ(task,pid);
 		e->ppid = BPF_CORE_READ(task,parent,pid);
 		bpf_get_current_comm(&(e->comm),TASK_COMM_LEN);
-		
+		e->count=0;
 		#pragma clang loop unroll(full)
-		for(int i=0;i<MAX_MMAP_ENTRY;i++){
+		for(int i=0;i<MAX_VMA_ENTRY;i++){
 			if(!vma){
-				file = BPF_CORE_READ(vma->vm_file);
-				if(file){
-					e->mmap[i].dev = BPF_CORE_READ(vma->vm_file->f_inode->i_sb->s_dev);
-					e->mmap[i].ino = BPF_CORE_READ(vma->vm_file->f_inode->i_ino);
-					temp = BPF_CORE_READ(vma->vm_pgoff);
-					e->mmap[i].pgoff = temp << PAGE_SHIFT;
+				file = BPF_CORE_READ(vma,vm_file);
+				if(!file){
+					vma = BPF_CORE_READ(vma,vm_next);
+					continue;
 				}
-				e->mmap[i].start = BPF_CORE_READ(vma->vm_start);
-				e->mmap[i].end = BPF_CORE_READ(vma->vm_end);
-				e->mmap[i].flags = BPF_CORE_READ(vma->vm_flags);
+				e->mmap[i].dev = BPF_CORE_READ(vma,vm_file,f_inode,i_sb,s_dev);
+				e->mmap[i].ino = BPF_CORE_READ(vma,vm_file,f_inode,i_ino);
+				temp = BPF_CORE_READ(vma,vm_pgoff);
+				e->mmap[i].pgoff = temp << PAGE_SHIFT;
 				
+				e->mmap[i].start = BPF_CORE_READ(vma,vm_start);
+				e->mmap[i].end = BPF_CORE_READ(vma,vm_end);
+				e->mmap[i].flags = BPF_CORE_READ(vma,vm_flags);
+				filepath = BPF_CORE_READ(file,f_path);
+				bpf_d_path(&filepath,e->mmap[i].name,MAXLEN_VMA_NAME);
+				e->count += 1;
 			}
+			vma = BPF_CORE_READ(vma,vm_next);
 		}
 		bpf_ringbuf_submit(e,0);
 	}

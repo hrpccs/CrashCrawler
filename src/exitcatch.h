@@ -9,10 +9,10 @@
 #define MAXLEN_VMA_NAME 64
 #define PAGE_SHIFT 13 //8KB differs from kernels
 
-enum vma_type {
-	file,
+// enum vma_type {
+// 	file,
 	
-}
+// }
 
 struct mmap_struct{
 	unsigned long start;
@@ -33,6 +33,7 @@ struct event{
 		int exit_code;
 		char comm[TASK_COMM_LEN];
 		unsigned long stack_id;
+		unsigned int count;
 		struct mmap_struct mmap[MAX_VMA_ENTRY];
 };
 
