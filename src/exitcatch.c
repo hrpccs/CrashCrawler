@@ -106,6 +106,25 @@ static int quiSymbol(long int query)
     return left;
 }
 
+static void initializeSysInfo()
+{
+    /*
+        硬件信息脚本
+        https://blog.csdn.net/LvJzzZ/article/details/112029991
+    */
+    FILE * fp;
+    char buffer[800];
+    fp=popen("bash /home/tz/os/competition/OScomp/src/hardware.sh","r");
+    while (1)
+    {
+        memset(buffer, 0, sizeof(buffer));
+        void* ptr = fgets(buffer,sizeof(buffer),fp);
+        if(ptr == NULL)
+            break;
+        printf("%s",buffer);
+    }
+    pclose(fp);
+}
 struct exitcatch_bpf *skel;
 
 static struct env
@@ -212,8 +231,9 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 
 int main(int argc, char **argv)
 {
+	initializeSysInfo();
     initializeSym();
-    printf("Finished initializing...\n");
+    printf(YELLOW">>>>>>>Finished initializing...\n"NONE);
 	struct ring_buffer *rb = NULL;
 	int err;
 

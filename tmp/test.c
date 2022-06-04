@@ -95,7 +95,32 @@ static int quiSymbol(long int query)
     left = left > 0 ? --left : left;
     return left;
 }
-int main()
+typedef struct
+{
+    char kernelInfo[NAMELIMIT];
+    char CPUINFO[NAMELIMIT * 10];
+}sysInfo;
+
+void initializeSysInfo()
+{
+    /*
+        硬件信息脚本
+        https://blog.csdn.net/LvJzzZ/article/details/112029991
+    */
+    FILE * fp;
+    char buffer[800];
+    fp=popen("bash hardware.sh","r");
+    while (1)
+    {
+        memset(buffer, 0, sizeof(buffer));
+        void* ptr = fgets(buffer,sizeof(buffer),fp);
+        if(ptr == NULL)
+            break;
+        printf("%s",buffer);
+    }
+    pclose(fp);
+}
+void test1()
 {
     initializeSym();
     printf("Finished initializing...\n");
@@ -106,5 +131,9 @@ int main()
         int left = quiSymbol(query);
         printf("%#lx %s+%#lx\n", symList.nodeArray[left].address,symList.nodeArray[left].name, query - symList.nodeArray[left].address);
     }
+}
+int main()
+{
+    initializeSysInfo();
     return 0;
 }
