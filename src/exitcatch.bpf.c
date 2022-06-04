@@ -50,7 +50,7 @@ int trace_event_raw_sched_process_exit(void *ctx)
 		e->tid = BPF_CORE_READ(task,pid);
 		e->ppid = BPF_CORE_READ(task,parent,pid);
 		bpf_get_current_comm(&(e->comm),TASK_COMM_LEN);
-		e->count=0;
+		int count=0;
 		#pragma clang loop unroll(full)
 		for(int i=0;i<MAX_VMA_ENTRY;i++){
 			if(!vma){
@@ -59,20 +59,21 @@ int trace_event_raw_sched_process_exit(void *ctx)
 					vma = BPF_CORE_READ(vma,vm_next);
 					continue;
 				}
-				e->mmap[i].dev = BPF_CORE_READ(vma,vm_file,f_inode,i_sb,s_dev);
-				e->mmap[i].ino = BPF_CORE_READ(vma,vm_file,f_inode,i_ino);
+				e->mmap[count].dev = BPF_CORE_READ(vma,vm_file,f_inode,i_sb,s_dev);
+				e->mmap[count].ino = BPF_CORE_READ(vma,vm_file,f_inode,i_ino);
 				temp = BPF_CORE_READ(vma,vm_pgoff);
-				e->mmap[i].pgoff = temp << PAGE_SHIFT;
+				e->mmap[count].pgoff = temp << PAGE_SHIFT;
 				
-				e->mmap[i].start = BPF_CORE_READ(vma,vm_start);
-				e->mmap[i].end = BPF_CORE_READ(vma,vm_end);
-				e->mmap[i].flags = BPF_CORE_READ(vma,vm_flags);
+				e->mmap[count].start = BPF_CORE_READ(vma,vm_start);
+				e->mmap[count].end = BPF_CORE_READ(vma,vm_end);
+				e->mmap[count].flags = BPF_CORE_READ(vma,vm_flags);
 				filepath = BPF_CORE_READ(file,f_path);
-				bpf_d_path(&filepath,e->mmap[i].name,MAXLEN_VMA_NAME);
-				e->count += 1;
+				bpf_d_path(&filepath,e->mmap[count].name,MAXLEN_VMA_NAME);
+				count += 1;
 			}
 			vma = BPF_CORE_READ(vma,vm_next);
 		}
+		e->count = count;
 		bpf_ringbuf_submit(e,0);
 	}
 

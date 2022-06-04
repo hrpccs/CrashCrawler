@@ -7,6 +7,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/resource.h>
+#include <sys/mount.h>
 #include <bpf/libbpf.h>
 #include "exitcatch.h"
 #include "exitcatch.skel.h"
@@ -114,7 +115,7 @@ static void initializeSysInfo()
     */
     FILE * fp;
     char buffer[800];
-    fp=popen("bash /home/tz/os/competition/OScomp/src/hardware.sh","r");
+    fp=popen("bash ../src/hardware.sh","r");
     while (1)
     {
         memset(buffer, 0, sizeof(buffer));
@@ -226,6 +227,21 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		// printf("    %#lx\n", stack);
 	}
 
+	//share lib
+	const struct mmap_struct* curr;
+	for(int i=0;i<e->count;i++){
+		curr = &(e->mmap[i]);
+		printf("%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
+		curr->start,
+		curr->end,
+		curr->flags & VM_READ ? 'r' : '-',
+		curr->flags & VM_WRITE ? 'w' : '-',
+		curr->flags & VM_EXEC ? 'x' : '-',
+		curr->flags & VM_MAYSHARE ? 's' : 'p',
+		curr->pgoff,
+		MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
+	}
+
 	return 0;
 }
 
@@ -233,7 +249,9 @@ int main(int argc, char **argv)
 {
 	initializeSysInfo();
     initializeSym();
+	
     printf(YELLOW">>>>>>>Finished initializing...\n"NONE);
+	//sudo mount -t debugfs none /sys/kernel/debug 
 	struct ring_buffer *rb = NULL;
 	int err;
 
