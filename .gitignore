@@ -2,3 +2,6 @@
 *.bin
 *.a
 *.pc
+src/vmlinux.h
+src/*.skel.h
+src/libbpf

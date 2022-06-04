@@ -22,7 +22,7 @@ build:$(LIBBPF_OBJ) $(SRCDIR)/vmlinux.h $(LIBBPF_OBJ)
 	clang $(CFLAGS) -target bpf $(INCLUDE_PATH) -c $(SRC_TARGET).bpf.c -o $(target).bpf.o 
 	$(bpftool) gen skeleton  $(target).bpf.o > $(SRC_TARGET).skel.h
 	clang $(CFLAGS) -Wall $(INCLUDE_PATH) -c $(SRC_TARGET).c -o $(target).o
-	clang -Wall $(CFLAGS) $(target).o -static $(LIBBPF_OBJ) -lelf -lz -o $(target)
+	clang -Wall $(CFLAGS) $(target).o -static $(LIBBPF_OBJ) -lelf -lz -o $(target).bin
 
 $(SRCDIR)/vmlinux.h:
 	$(bpftool) btf dump file /sys/kernel/btf/vmlinux format c > $(SRCDIR)/vmlinux.h
@@ -38,6 +38,6 @@ $(LIBBPF_SRC)/Makefile:
 
 
 clean:
-	rm -rf $(target) *.o ../src/$(target).skel.h 
+	rm -rf *.bin *.o ../src/$(target).skel.h 
 cleanall:
-	rm -rf $(target) *.o ../src/$(target).skel.h libbpf.* staticobjs ../src/libbpf/usr/include ../src/vmlinux.h ../crashtest/*.bin
+	rm -rf *.bin *.o ../src/$(target).skel.h libbpf.* staticobjs ../src/libbpf/usr/include ../src/vmlinux.h ../crashtest/*.bin
