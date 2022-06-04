@@ -7,8 +7,9 @@
 
 
 // should get from kernel header ?
-#define MAX_VMA_ENTRY 50 
+#define MAX_VMA_ENTRY 30 
 #define MAXLEN_VMA_NAME 64
+#define MAX_LEVEL 5
 #define PAGE_SHIFT 13 //8KB differs from kernels
 //from /include/linux/kdev.h
 #define MAJOR(dev)	((dev)>>8)
@@ -40,8 +41,9 @@ struct mmap_struct{
 	unsigned long long pgoff;
 	unsigned long ino;
 	dev_t dev;
-	char name[MAXLEN_VMA_NAME]; //name
-	
+	unsigned int index;
+	// char name[MAX_LEVEL][MAXLEN_VMA_NAME+1]; //name
+	char name[MAXLEN_VMA_NAME+1];
 };
 
 struct event{
@@ -52,7 +54,7 @@ struct event{
 		int exit_code;
 		char comm[TASK_COMM_LEN];
 		unsigned long stack_id;
-		unsigned int count;
+		unsigned long count;
 		struct mmap_struct mmap[MAX_VMA_ENTRY];
 };
 

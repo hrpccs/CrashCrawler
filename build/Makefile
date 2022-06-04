@@ -19,7 +19,7 @@ endif
 .DEBFAULT: build
 
 build:$(LIBBPF_OBJ) $(SRCDIR)/vmlinux.h $(LIBBPF_OBJ)
-	clang $(CFLAGS) -target bpf $(INCLUDE_PATH) -c $(SRC_TARGET).bpf.c -o $(target).bpf.o 
+	clang $(CFLAGS) -target bpf -D__TARGET_ARCH_x86 $(INCLUDE_PATH) -c $(SRC_TARGET).bpf.c -o $(target).bpf.o 
 	$(bpftool) gen skeleton  $(target).bpf.o > $(SRC_TARGET).skel.h
 	clang $(CFLAGS) -Wall $(INCLUDE_PATH) -c $(SRC_TARGET).c -o $(target).o
 	clang -Wall $(CFLAGS) $(target).o -static $(LIBBPF_OBJ) -lelf -lz -o $(target).bin

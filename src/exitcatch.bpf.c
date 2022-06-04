@@ -2,8 +2,10 @@
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
+#include <bpf/bpf_tracing.h>
 #include "exitcatch.h"
 
+#define MAX_STRLEN 20
 
 //Use a ringbuffer Map to send data down to userspace 
 struct {
@@ -19,9 +21,22 @@ struct {
 	__uint(max_entries,8192);
 } map_stack_traces SEC(".maps");
 
+static char *simple_dname(const struct dentry* dentry,char *buffer, int buflen){
+	struct qstr dname = BPF_CORE_READ(dentry,d_name);
+	if(dname.len < MAXLEN_VMA_NAME){
+		bpf_probe_read_kernel_str(buffer,dname.len & (MAXLEN_VMA_NAME-1),dname.name);
+		return buffer;
+	}
+	return buffer+buflen+1;
+	
+}
+
+
 // the path in the debugfs, and debugfs need to be mounted
-SEC("tp/sched/sched_process_exit") 
-int trace_event_raw_sched_process_exit(void *ctx)
+// SEC("tp/sched/sched_process_exit") 
+// int trace_event_raw_sched_process_exit(void *ctx)
+SEC("kprobe/do_exit")
+int BPF_KPROBE (kprobe__do_exit,long exitcode)
 {	
 	struct task_struct *task;
 	struct vm_area_struct *vma;
@@ -29,17 +44,17 @@ int trace_event_raw_sched_process_exit(void *ctx)
 	struct path filepath;
 	struct event *e;
 
+	if(exitcode == 0){ //exit normally
+		return 0;
+	}
 
 	// get information in task_struct
 	task = (struct task_struct *)bpf_get_current_task();
 	vma = BPF_CORE_READ(task,mm,mmap);
 
 	long long temp = 0;
-	int exitcode = BPF_CORE_READ(task,exit_code);
-
-	if(exitcode == 0){ //exit normally
-		return 0;
-	}
+	char * tptr = 0;
+	
 	//Log event to ringbuffer to be read by userspace 
 	e = bpf_ringbuf_reserve(&rb,sizeof(*e), 0);
 	if(e){
@@ -51,9 +66,10 @@ int trace_event_raw_sched_process_exit(void *ctx)
 		e->ppid = BPF_CORE_READ(task,parent,pid);
 		bpf_get_current_comm(&(e->comm),TASK_COMM_LEN);
 		int count=0;
-		#pragma clang loop unroll(full)
+
+#pragma unroll
 		for(int i=0;i<MAX_VMA_ENTRY;i++){
-			if(!vma){
+			if(vma){
 				file = BPF_CORE_READ(vma,vm_file);
 				if(!file){
 					vma = BPF_CORE_READ(vma,vm_next);
@@ -68,8 +84,25 @@ int trace_event_raw_sched_process_exit(void *ctx)
 				e->mmap[count].end = BPF_CORE_READ(vma,vm_end);
 				e->mmap[count].flags = BPF_CORE_READ(vma,vm_flags);
 				filepath = BPF_CORE_READ(file,f_path);
-				bpf_d_path(&filepath,e->mmap[count].name,MAXLEN_VMA_NAME);
-				count += 1;
+				struct dentry* dentry=filepath.dentry;
+				struct qstr dname= BPF_CORE_READ(dentry,d_name);
+				bpf_probe_read_kernel_str(&(e->mmap[count].name[0]),MAXLEN_VMA_NAME,dname.name);
+				// int j=MAX_LEVEL-1;
+				// int flag=0;
+				// while(j>=4){
+				// 	if(dentry != 0){
+				// 		bpf_probe_read_kernel_str(e->mmap[count].name[j],MAXLEN_VMA_NAME,BPF_CORE_READ(dentry,d_name).name);
+				// 		dentry = BPF_CORE_READ(dentry,d_parent);
+				// 	}else{
+				// 		e->mmap[count].index=j+1;
+				// 		flag=1;
+				// 	}
+				// 	j--;
+				// }
+				// if(flag==0){
+				// 	e->mmap[count].index=0;
+				// }
+				count++;
 			}
 			vma = BPF_CORE_READ(vma,vm_next);
 		}
