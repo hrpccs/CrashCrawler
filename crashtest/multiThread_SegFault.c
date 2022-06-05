@@ -11,7 +11,7 @@ int main()
         int *ptr = (void *)main;
         for (int i = 0; i < 100000000000000; i++);
         printf("attend to write read only mem %p\n", ptr);
-        // *ptr = 1000;
+        *ptr = 1000;
     }
     // printf(NONE"Test\n"NONE);
     // printf(LIGHT_BLUE"Test\n"NONE);

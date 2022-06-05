@@ -183,17 +183,16 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		printf("Error finding stack trace\n");
 		return 0;
 	}
-<<<<<<< HEAD
-	printf(LIGHT_GREEN "%-8s" NONE " %-16s %-7s %-7s %-7s %-9s %s\n",
+	fprintf(fp,"%-14s %-16s %-7s %-7s %-7s %-9s %s\n",
 		   "TIME", "COMM", "TID", "PID", "PPID", "EXIT CODE", "SIGNALS");
-	printf(LIGHT_GREEN "%-8s" NONE " %-16s %-7d %-7d %-7d %-9d %d\n",
-=======
-	fprintf(fp,LIGHT_GREEN"%-14s"NONE" %-16s %-7s %-7s %-7s %-9s %s\n",
-		   "TIME", "COMM", "TID", "PID", "PPID", "EXIT CODE", "SIGNALS");
-	fprintf(fp,LIGHT_GREEN"%-14s"NONE" %-16s %-7d %-7d %-7d %-9d %d\n",
->>>>>>> 31741c729c0cfc8703fd2f35c41c8998467864d0
+	fprintf(fp,"%-14s %-16s %-7d %-7d %-7d %-9d %d\n",
 		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
 	fprintf(fp,"stack trace:\n");
+	printf(LIGHT_GREEN"%-14s"NONE" %-16s %-7s %-7s %-7s %-9s %s\n",
+		   "TIME", "COMM", "TID", "PID", "PPID", "EXIT CODE", "SIGNALS");
+	printf(LIGHT_GREEN"%-14s"NONE" %-16s %-7d %-7d %-7d %-9d %d\n",
+		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
+	printf("stack trace:\n");
 	for (int i = 0; i < MAX_STACK_DEPTH; i++)
 	{
 		stack = stacks[i];
@@ -202,11 +201,8 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			break;
 		}
 		int index = quiSymbol(stack);
-<<<<<<< HEAD
-		printf("    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
-=======
         fprintf(fp,"    %#lx %s+%#lx\n", stack,symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
->>>>>>> 31741c729c0cfc8703fd2f35c41c8998467864d0
+        printf("    %#lx %s+%#lx\n", stack,symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
 		// printf("    %#lx\n", stack);
 	}
 	// printf("%lx\n",e->count);
@@ -216,29 +212,16 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	for (int i = 0; i < e->count; i++)
 	{
 		curr = &(e->mmap[i]);
-<<<<<<< HEAD
-		printf("%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
-			   curr->start,
-			   curr->end,
-			   curr->flags & VM_READ ? 'r' : '-',
-			   curr->flags & VM_WRITE ? 'w' : '-',
-			   curr->flags & VM_EXEC ? 'x' : '-',
-			   curr->flags & VM_MAYSHARE ? 's' : 'p',
-			   curr->pgoff,
-			   MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
-
-		for (int i = 0; i < MAX_LEVEL; i++)
-		{
-			if (curr->name[i][0] == '\0' || curr->name[i][0] == '/')
-			{
-				continue;
-			}
-			printf("/%s", curr->name[i]);
-		}
-
-		printf("\n");
-=======
 		fprintf(fp,"%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
+		curr->start,
+		curr->end,
+		curr->flags & VM_READ ? 'r' : '-',
+		curr->flags & VM_WRITE ? 'w' : '-',
+		curr->flags & VM_EXEC ? 'x' : '-',
+		curr->flags & VM_MAYSHARE ? 's' : 'p',
+		curr->pgoff,
+		MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
+		printf("%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
 		curr->start,
 		curr->end,
 		curr->flags & VM_READ ? 'r' : '-',
@@ -253,10 +236,10 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 				continue;
 			}
 			fprintf(fp,"/%s",curr->name[i]);
+			printf("/%s",curr->name[i]);
 		}
 		
-		fprintf(fp,"\n");
->>>>>>> 31741c729c0cfc8703fd2f35c41c8998467864d0
+		printf("\n");
 	}
 	fclose(fp);
 	return 0;
