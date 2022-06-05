@@ -7,3 +7,4 @@ src/*.skel.h
 src/libbpf
 .vscode/
 tmp/
+*.log
