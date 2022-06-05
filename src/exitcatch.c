@@ -226,7 +226,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
         printf("    %#lx %s+%#lx\n", stack,symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
 		// printf("    %#lx\n", stack);
 	}
-	printf("%lx\n",e->count);
+	// printf("%lx\n",e->count);
 
 	// share lib
 	const struct mmap_struct* curr;
@@ -241,10 +241,14 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		curr->flags & VM_MAYSHARE ? 's' : 'p',
 		curr->pgoff,
 		MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
-		// for(int j=curr->index;j<MAX_LEVEL;j++){
-		// 	printf("%s",curr->name[j]);
-		// }
-		printf("%s",curr->name);
+
+		for(int i=0;i<4;i++){
+			if(curr->name[i][0] == '\0' || curr->name[i][0] == '/'){
+				continue;
+			}
+			printf("/%s",curr->name[i]);
+		}
+		
 		printf("\n");
 	}
 

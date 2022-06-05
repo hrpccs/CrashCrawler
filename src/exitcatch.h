@@ -43,7 +43,7 @@ struct mmap_struct{
 	dev_t dev;
 	unsigned int index;
 	// char name[MAX_LEVEL][MAXLEN_VMA_NAME+1]; //name
-	char name[MAXLEN_VMA_NAME+1];
+	char name[4][MAXLEN_VMA_NAME+1];
 };
 
 struct event{

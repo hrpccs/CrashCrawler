@@ -86,22 +86,18 @@ int BPF_KPROBE (kprobe__do_exit,long exitcode)
 				filepath = BPF_CORE_READ(file,f_path);
 				struct dentry* dentry=filepath.dentry;
 				struct qstr dname= BPF_CORE_READ(dentry,d_name);
-				bpf_probe_read_kernel_str(&(e->mmap[count].name[0]),MAXLEN_VMA_NAME,dname.name);
-				// int j=MAX_LEVEL-1;
-				// int flag=0;
-				// while(j>=4){
-				// 	if(dentry != 0){
-				// 		bpf_probe_read_kernel_str(e->mmap[count].name[j],MAXLEN_VMA_NAME,BPF_CORE_READ(dentry,d_name).name);
-				// 		dentry = BPF_CORE_READ(dentry,d_parent);
-				// 	}else{
-				// 		e->mmap[count].index=j+1;
-				// 		flag=1;
-				// 	}
-				// 	j--;
-				// }
-				// if(flag==0){
-				// 	e->mmap[count].index=0;
-				// }
+				bpf_probe_read_kernel_str(&(e->mmap[count].name[3][0]),(dname.len+5) & (MAXLEN_VMA_NAME-1),dname.name-4);
+				dentry = BPF_CORE_READ(dentry,d_parent);
+				dname = BPF_CORE_READ(dentry,d_name);
+				bpf_probe_read_kernel_str(&(e->mmap[count].name[2][0]),(dname.len+5) & (MAXLEN_VMA_NAME-1),dname.name-4);
+				// struct mount* mnt = container_of(filepath.mnt,struct mount,mnt);
+				// dname = BPF_CORE_READ(mnt,mnt_parent,mnt_mountpoint,d_name);
+				dentry = BPF_CORE_READ(dentry,d_parent);
+				dname = BPF_CORE_READ(dentry,d_name);
+				bpf_probe_read_kernel_str(&(e->mmap[count].name[1][0]),(dname.len+5) & (MAXLEN_VMA_NAME-1),dname.name-4);
+				dentry = BPF_CORE_READ(dentry,d_parent);
+				dname = BPF_CORE_READ(dentry,d_name);
+				bpf_probe_read_kernel_str(&(e->mmap[count].name[0][0]),(dname.len+5) & (MAXLEN_VMA_NAME-1),dname.name-4);
 				count++;
 			}
 			vma = BPF_CORE_READ(vma,vm_next);
