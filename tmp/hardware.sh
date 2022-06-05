@@ -25,19 +25,19 @@ cpu_main_freq=`cat /proc/cpuinfo | grep "model name" | awk -F '@' 'NR==1 {print 
 echo "$cpu_main_freq"
 
 ##L1d缓存
-cpu_l1d_cache=`lscpu | grep -i 'L1d 缓存\|L1d cache' | awk -F '：|:' '{print $2}'`
+cpu_l1d_cache=`lscpu | grep -i 'L1d 缓存\|L1d cache' | awk -F ':|:' '{print $2}'`
 echo "$cpu_l1d_cache"
 
 ##L1i缓存
-cpu_l1i_cache=`lscpu | grep -i 'L1i 缓存\|L1i cache' | awk -F '：|:' '{print $2}'`
+cpu_l1i_cache=`lscpu | grep -i 'L1i 缓存\|L1i cache' | awk -F ':|:' '{print $2}'`
 echo "$cpu_l1i_cache"
 
 ##L2缓存
-cpu_l2_cache=`lscpu | grep -i 'L2 缓存\|L2 cache' | awk -F '：|:' '{print $2}'`
+cpu_l2_cache=`lscpu | grep -i 'L2 缓存\|L2 cache' | awk -F ':|:' '{print $2}'`
 echo "$cpu_l2_cache"
 
 ##L3缓存
-cpu_l3_cache=`lscpu | grep -i 'L3 缓存\|L3 cache' | awk -F '：|:' '{print $2}'`
+cpu_l3_cache=`lscpu | grep -i 'L3 缓存\|L3 cache' | awk -F ':|:' '{print $2}'`
 echo "$cpu_l3_cache"
 
 #操作系统名称
@@ -76,7 +76,7 @@ function convert_unit()
 	fi
 }
 
-#单位：KB
+#单位:KB
 MemTotal=$(cat /proc/meminfo | awk '/^MemTotal/{print $2}') #内存总量
 MemFree=$(cat /proc/meminfo | awk '/^MemFree/{print $2}')   #空闲内存
 MemUsed=$(expr $MemTotal - $MemFree)  #已用内存

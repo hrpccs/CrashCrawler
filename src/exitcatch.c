@@ -18,113 +18,113 @@ const char *KALLPATH = "/proc/kallsyms";
 
 typedef struct
 {
-    /*
-        One node for symbol table
-    */
-    unsigned long int address;
-    char flag;
-    char name[NAMELIMIT];
-    //    symbolNode(unsigned long int _addr = 0, char _flag = 0, _name = ""):
+	/*
+		One node for symbol table
+	*/
+	unsigned long int address;
+	char flag;
+	char name[NAMELIMIT];
+	//    symbolNode(unsigned long int _addr = 0, char _flag = 0, _name = ""):
 } symbolNode;
 
 typedef struct
 {
-    /*
-        The whole table
-    */
-    symbolNode nodeArray[LISTLIMT];
-    int length;
+	/*
+		The whole table
+	*/
+	symbolNode nodeArray[LISTLIMT];
+	int length;
 } symbolList;
 symbolList symList;
 
 static int char2int(char c)
 {
-    if (c <= '9' && c >= '0')
-        return c - '0';
-    else
-        return c - 'a' + 10;
+	if (c <= '9' && c >= '0')
+		return c - '0';
+	else
+		return c - 'a' + 10;
 }
 static long int calIndex(int n)
 {
-    long int ans = 1;
-    while (n--)
-        ans *= 16;
-    return ans;
+	long int ans = 1;
+	while (n--)
+		ans *= 16;
+	return ans;
 }
 static void initializeSym()
 {
-    FILE *fp = fopen(KALLPATH, "r");
-    char *line = NULL;
-    size_t len = 0;
-    size_t readLength;
-    symList.length = 0;
-    while ((readLength = getline(&line, &len, fp)) != -1)
-    {
-        int mod = 0;
-        for (int i = 0; i < readLength; i++)
-        {
-            // printf("%c",line[i]);
-            if (line[i] == '\t' || line[i] == '\n')
-                break;
-            if (line[i] == ' ')
-            {
-                ++mod;
-                continue;
-            }
-            if (mod == 0)
-            {
-                if (i == 0)
-                    symList.nodeArray[symList.length].address = 0;
-                symList.nodeArray[symList.length].address += calIndex(15 - i) * char2int(line[i]);
-            }
-            else if (mod == 1)
-            {
-                symList.nodeArray[symList.length].flag = line[i];
-            }
-            else
-            {
-                if (i == 19)
-                    memset(symList.nodeArray[symList.length].name, 0, sizeof(symList.nodeArray[symList.length].name));
-                symList.nodeArray[symList.length].name[i - 19] = line[i];
-            }
-        }
-        // printf("%#lx %c %s\n", symList.nodeArray[symList.length].address,symList.nodeArray[symList.length].flag,symList.nodeArray[symList.length].name);
-        ++symList.length;
-    }
+	FILE *fp = fopen(KALLPATH, "r");
+	char *line = NULL;
+	size_t len = 0;
+	size_t readLength;
+	symList.length = 0;
+	while ((readLength = getline(&line, &len, fp)) != -1)
+	{
+		int mod = 0;
+		for (int i = 0; i < readLength; i++)
+		{
+			// printf("%c",line[i]);
+			if (line[i] == '\t' || line[i] == '\n')
+				break;
+			if (line[i] == ' ')
+			{
+				++mod;
+				continue;
+			}
+			if (mod == 0)
+			{
+				if (i == 0)
+					symList.nodeArray[symList.length].address = 0;
+				symList.nodeArray[symList.length].address += calIndex(15 - i) * char2int(line[i]);
+			}
+			else if (mod == 1)
+			{
+				symList.nodeArray[symList.length].flag = line[i];
+			}
+			else
+			{
+				if (i == 19)
+					memset(symList.nodeArray[symList.length].name, 0, sizeof(symList.nodeArray[symList.length].name));
+				symList.nodeArray[symList.length].name[i - 19] = line[i];
+			}
+		}
+		// printf("%#lx %c %s\n", symList.nodeArray[symList.length].address,symList.nodeArray[symList.length].flag,symList.nodeArray[symList.length].name);
+		++symList.length;
+	}
 }
 static int quiSymbol(long int query)
 {
-    int left = 0, right = symList.length;
-    while (left < right)
-    {
-        int mid = (left + right) / 2;
-        if(symList.nodeArray[mid].address >= query)
-            right = mid;
-        else
-            left = mid + 1;
-    }
-    left = left > 0 ? --left : left;
-    return left;
+	int left = 0, right = symList.length;
+	while (left < right)
+	{
+		int mid = (left + right) / 2;
+		if (symList.nodeArray[mid].address >= query)
+			right = mid;
+		else
+			left = mid + 1;
+	}
+	left = left > 0 ? --left : left;
+	return left;
 }
 
 static void initializeSysInfo()
 {
-    /*
-        硬件信息脚本
-        https://blog.csdn.net/LvJzzZ/article/details/112029991
-    */
-    FILE * fp;
-    char buffer[800];
-    fp=popen("bash ../src/hardware.sh","r");
-    while (1)
-    {
-        memset(buffer, 0, sizeof(buffer));
-        void* ptr = fgets(buffer,sizeof(buffer),fp);
-        if(ptr == NULL)
-            break;
-        printf("%s",buffer);
-    }
-    pclose(fp);
+	/*
+		硬件信息脚本
+		https://blog.csdn.net/LvJzzZ/article/details/112029991
+	*/
+	FILE *fp;
+	char buffer[800];
+	fp = popen("bash ../src/hardware.sh", "r");
+	while (1)
+	{
+		memset(buffer, 0, sizeof(buffer));
+		void *ptr = fgets(buffer, sizeof(buffer), fp);
+		if (ptr == NULL)
+			break;
+		printf("%s", buffer);
+	}
+	pclose(fp);
 }
 struct exitcatch_bpf *skel;
 
@@ -210,9 +210,9 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		printf("Error finding stack trace\n");
 		return 0;
 	}
-	printf(LIGHT_GREEN"%-8s"NONE" %-16s %-7s %-7s %-7s %-9s %s\n",
+	printf(LIGHT_GREEN "%-8s" NONE " %-16s %-7s %-7s %-7s %-9s %s\n",
 		   "TIME", "COMM", "TID", "PID", "PPID", "EXIT CODE", "SIGNALS");
-	printf(LIGHT_GREEN"%-8s"NONE" %-16s %-7d %-7d %-7d %-9d %d\n",
+	printf(LIGHT_GREEN "%-8s" NONE " %-16s %-7d %-7d %-7d %-9d %d\n",
 		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
 	printf("stack trace:\n");
 	for (int i = 0; i < MAX_STACK_DEPTH; i++)
@@ -223,32 +223,35 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			break;
 		}
 		int index = quiSymbol(stack);
-        printf("    %#lx %s+%#lx\n", stack,symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
+		printf("    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
 		// printf("    %#lx\n", stack);
 	}
 	// printf("%lx\n",e->count);
 
 	// share lib
-	const struct mmap_struct* curr;
-	for(int i=0;i<e->count;i++){
+	const struct mmap_struct *curr;
+	for (int i = 0; i < e->count; i++)
+	{
 		curr = &(e->mmap[i]);
 		printf("%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
-		curr->start,
-		curr->end,
-		curr->flags & VM_READ ? 'r' : '-',
-		curr->flags & VM_WRITE ? 'w' : '-',
-		curr->flags & VM_EXEC ? 'x' : '-',
-		curr->flags & VM_MAYSHARE ? 's' : 'p',
-		curr->pgoff,
-		MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
+			   curr->start,
+			   curr->end,
+			   curr->flags & VM_READ ? 'r' : '-',
+			   curr->flags & VM_WRITE ? 'w' : '-',
+			   curr->flags & VM_EXEC ? 'x' : '-',
+			   curr->flags & VM_MAYSHARE ? 's' : 'p',
+			   curr->pgoff,
+			   MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
 
-		for(int i=0;i<MAX_LEVEL;i++){
-			if(curr->name[i][0] == '\0' || curr->name[i][0] == '/'){
+		for (int i = 0; i < MAX_LEVEL; i++)
+		{
+			if (curr->name[i][0] == '\0' || curr->name[i][0] == '/')
+			{
 				continue;
 			}
-			printf("/%s",curr->name[i]);
+			printf("/%s", curr->name[i]);
 		}
-		
+
 		printf("\n");
 	}
 
@@ -258,10 +261,10 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 int main(int argc, char **argv)
 {
 	initializeSysInfo();
-    initializeSym();
-	
-    printf(YELLOW">>>>>>>Finished initializing...\n"NONE);
-	//sudo mount -t debugfs none /sys/kernel/debug 
+	initializeSym();
+
+	printf(YELLOW ">>>>>>>Finished initializing...\n" NONE);
+	// sudo mount -t debugfs none /sys/kernel/debug
 	struct ring_buffer *rb = NULL;
 	int err;
 
