@@ -303,18 +303,18 @@ int main(int argc, char **argv)
 	}
 
 	/* Set up ring buffer polling */
-	rb = ring_buffer__new(bpf_map__fd(skel->maps.rb), handle_event, NULL, NULL);
-	if (!rb)
-	{
-		err = -1;
-		fprintf(stderr, "Failed to create ring buffer\n");
-		goto cleanup;
-	}
+	
 	//
 	mkdir(logpath, S_IRWXU);
 	chdir(logpath);
 	//
-
+	rb = ring_buffer__new(bpf_map__fd(skel->maps.rb), handle_event, NULL, NULL);
+		if (!rb)
+		{
+			err = -1;
+			fprintf(stderr, "Failed to create ring buffer\n");
+			goto cleanup;
+		}
 	/* Process events */
 
 	while (!exiting)

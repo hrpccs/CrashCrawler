@@ -94,6 +94,7 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 				struct dentry *dentry = filepath.dentry;
 				struct qstr dname = BPF_CORE_READ(dentry, d_name);
 
+				//read abs path of share lib
 				// MAXLEN_VMA_NAME = 2^n;
 				for (int i = MAX_LEVEL - 1; i >= 0; i--)
 				{
