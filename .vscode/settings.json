@@ -1,8 +1,0 @@
-{
-    "files.associations": {
-        "exitcatch.h": "c",
-        "color.h": "c",
-        "bpf_core_read.h": "c"
-    },
-    "C_Cpp.errorSquiggles": "Disabled"
-}
