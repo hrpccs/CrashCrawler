@@ -42,6 +42,7 @@ https://gist.github.com/MarioHewardt/5759641727aae880b29c8f715ba4d30f
 git clone https://gitlab.eduxiji.net/fuhengyu/sysu-proj160.git
 cd build
 make build -j 4
+sudo mount -t debugfs none /sys/kernel/debug 
 sudo ./exitcatch
 ```
 
