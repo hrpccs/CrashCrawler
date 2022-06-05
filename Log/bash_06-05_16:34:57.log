@@ -1,0 +1,61 @@
+TIME           COMM             TID     PID     PPID    EXIT CODE SIGNALS
+06-05_16:34:57 bash             256317  256317  1       0         1
+Stack Trace:
+    0xffffffffb74a8611 do_exit+0x1
+    0xffffffffb74b7c11 get_signal+0x171
+    0xffffffffb7436f42 arch_do_signal_or_restart+0xf2
+    0xffffffffb753c20f exit_to_user_mode_prepare+0x12f
+    0xffffffffb7ffa237 syscall_exit_to_user_mode+0x27
+    0xffffffffb7ff5eae do_syscall_64+0x6e
+    0xffffffffb820007c entry_SYSCALL_64_after_hwframe+0x44
+[Dependencies] Dynamic Libs:
+5556778e4000-555677911000 r--p 00000000 39008000:05 658347 1
+/usr/bin/bash
+555677911000-5556779c2000 r-xp 0005a000 39008000:05 658347 1
+/usr/bin/bash
+5556779c2000-5556779f9000 r--p 001bc000 39008000:05 658347 1
+/usr/bin/bash
+5556779f9000-5556779fd000 r--p 00228000 39008000:05 658347 1
+/usr/bin/bash
+5556779fd000-555677a06000 rw-p 00230000 39008000:05 658347 1
+/usr/bin/bash
+7f69cee75000-7f69cee78000 r--p 00000000 39008000:05 657548 1
+/usr/lib/x86_64-linux-gnu/libnss_files-2.31.so
+7f69cee78000-7f69cee7f000 r-xp 00006000 39008000:05 657548 1
+/usr/lib/x86_64-linux-gnu/libnss_files-2.31.so
+7f69cee7f000-7f69cee81000 r--p 00014000 39008000:05 657548 1
+/usr/lib/x86_64-linux-gnu/libnss_files-2.31.so
+7f69cee81000-7f69cee82000 r--p 00016000 39008000:05 657548 1
+/usr/lib/x86_64-linux-gnu/libnss_files-2.31.so
+7f69cee82000-7f69cee83000 rw-p 00018000 39008000:05 657548 1
+/usr/lib/x86_64-linux-gnu/libnss_files-2.31.so
+7f69cee9a000-7f69cf70b000 r--p 00000000 39008000:05 655992 1
+/usr/lib/locale/locale-archive
+7f69cf70e000-7f69cf730000 r--p 00000000 39008000:05 657540 1
+/usr/lib/x86_64-linux-gnu/libc-2.31.so
+7f69cf730000-7f69cf8a8000 r-xp 00044000 39008000:05 657540 1
+/usr/lib/x86_64-linux-gnu/libc-2.31.so
+7f69cf8a8000-7f69cf8f6000 r--p 00334000 39008000:05 657540 1
+/usr/lib/x86_64-linux-gnu/libc-2.31.so
+7f69cf8f6000-7f69cf8fa000 r--p 003ce000 39008000:05 657540 1
+/usr/lib/x86_64-linux-gnu/libc-2.31.so
+7f69cf8fa000-7f69cf8fc000 rw-p 003d6000 39008000:05 657540 1
+/usr/lib/x86_64-linux-gnu/libc-2.31.so
+7f69cf900000-7f69cf901000 r--p 00000000 39008000:05 657541 1
+/usr/lib/x86_64-linux-gnu/libdl-2.31.so
+7f69cf901000-7f69cf903000 r-xp 00002000 39008000:05 657541 1
+/usr/lib/x86_64-linux-gnu/libdl-2.31.so
+7f69cf903000-7f69cf904000 r--p 00006000 39008000:05 657541 1
+/usr/lib/x86_64-linux-gnu/libdl-2.31.so
+7f69cf904000-7f69cf905000 r--p 00006000 39008000:05 657541 1
+/usr/lib/x86_64-linux-gnu/libdl-2.31.so
+7f69cf905000-7f69cf906000 rw-p 00008000 39008000:05 657541 1
+/usr/lib/x86_64-linux-gnu/libdl-2.31.so
+7f69cf906000-7f69cf914000 r--p 00000000 39008000:05 663368 1
+/usr/lib/x86_64-linux-gnu/libtinfo.so.6.2
+7f69cf914000-7f69cf923000 r-xp 0001c000 39008000:05 663368 1
+/usr/lib/x86_64-linux-gnu/libtinfo.so.6.2
+7f69cf923000-7f69cf931000 r--p 0003a000 39008000:05 663368 1
+/usr/lib/x86_64-linux-gnu/libtinfo.so.6.2
+7f69cf931000-7f69cf935000 r--p 00054000 39008000:05 663368 1
+/usr/lib/x86_64-linux-gnu/libtinfo.so.6.2

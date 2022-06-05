@@ -188,8 +188,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	fprintf(fp, "%-14s %-16s %-7d %-7d %-7d %-9d %d\n",
 			ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
 	fprintf(fp, "Stack Trace:\n");
-	printf(HEAD "%-14s"
-				" %-16s %-7s %-7s %-7s %-9s %s" NONE "\n",
+	printf(HEAD "%-14s %-16s %-7s %-7s %-7s %-9s %s" NONE "\n",
 		   "TIME", "COMM", "TID", "PID", "PPID", "EXIT CODE", "SIGNALS");
 	printf(LIGHT_GREEN "%-14s" YELLOW " %-16s" NONE " %-7d %-7d %-7d" RED " %-9d %d\n" NONE,
 		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
@@ -233,7 +232,6 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			   curr->flags & VM_MAYSHARE ? 's' : 'p',
 			   curr->pgoff,
 			   MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
-
 		for (int i = 0; i < MAX_LEVEL; i++)
 		{
 			if (curr->name[i][0] == '\0' || curr->name[i][0] == '/')
@@ -244,9 +242,11 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			printf("/%s", curr->name[i]);
 		}
 
+		// printf("Hello World");
 		fprintf(fp, "\n");
 		printf("\n");
 	}
+	fprintf(fp, "\n");
 	fclose(fp);
 	return 0;
 }
