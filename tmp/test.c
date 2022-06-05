@@ -1,5 +1,9 @@
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <time.h>
 #define NAMELIMIT 100
 #define LISTLIMT 500000
 const char *KALLPATH = "/proc/kallsyms";
@@ -134,6 +138,21 @@ void test1()
 }
 int main()
 {
-    initializeSysInfo();
+    // initializeSysInfo();
+    struct tm *tm;
+	char ts[64];
+    char pathname[100] = "/var/log/crashlog";
+    char filename[100] = "423_06-05_09:54:13";
+	time_t t;
+
+	time(&t);
+	tm = localtime(&t);
+	strftime(ts, sizeof(ts), "%m-%d_%H:%M:%S", tm);
+    printf("%s",ts);
+    mkdir(pathname,S_IRWXU);
+
+    FILE* fp = fopen(filename,"w");
+    fprintf(fp,"hello world\n");
+    fclose(fp);
     return 0;
 }

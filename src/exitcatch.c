@@ -6,6 +6,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/resource.h>
 #include <sys/mount.h>
 #include <bpf/libbpf.h>
@@ -13,8 +16,12 @@
 #include "exitcatch.skel.h"
 #include "color.h"
 #define NAMELIMIT 100
+#define MAXLEN_PATH 100
 #define LISTLIMT 500000
 const char *KALLPATH = "/proc/kallsyms";
+char logpath[MAXLEN_PATH] = "/var/log/crashlog";
+
+char sysinfo_buffer[800];
 
 typedef struct
 {
@@ -114,65 +121,22 @@ static void initializeSysInfo()
         https://blog.csdn.net/LvJzzZ/article/details/112029991
     */
     FILE * fp;
-    char buffer[800];
     fp=popen("bash ../src/hardware.sh","r");
     while (1)
     {
-        memset(buffer, 0, sizeof(buffer));
-        void* ptr = fgets(buffer,sizeof(buffer),fp);
+        memset(sysinfo_buffer, 0, sizeof(sysinfo_buffer));
+        void* ptr = fgets(sysinfo_buffer,sizeof(sysinfo_buffer),fp);
         if(ptr == NULL)
             break;
-        printf("%s",buffer);
+        printf("%s",sysinfo_buffer);
     }
     pclose(fp);
 }
 struct exitcatch_bpf *skel;
 
-static struct env
-{
-	bool verbose;
-} env;
-
-const char *argp_program_version = "exitcatch 0.0";
-const char *argp_program_bug_address = "<bpf@vger.kernel.org>";
-const char argp_program_doc[] =
-	"BPF exitcatch demo application.\n"
-	"\n"
-	"It traces process exits unnormally and shows associated \n"
-	"information (filename, process duration, PID and PPID, stacktrace,etc).\n"
-	"\n"
-	"USAGE: ./exitcatch [-d <min-duration-ms>] [-v]\n";
-
-static const struct argp_option opts[] = {
-	{"verbose", 'v', NULL, 0, "Verbose debug output"},
-	{},
-};
-
-static error_t parse_arg(int key, char *arg, struct argp_state *state)
-{
-	switch (key)
-	{
-	case 'v':
-		env.verbose = true;
-		break;
-	case ARGP_KEY_ARG:
-		argp_usage(state);
-		break;
-	default:
-		return ARGP_ERR_UNKNOWN;
-	}
-	return 0;
-}
-
-static const struct argp argp = {
-	.options = opts,
-	.parser = parse_arg,
-	.doc = argp_program_doc,
-};
-
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {
-	if (level == LIBBPF_DEBUG && !env.verbose)
+	if (level == LIBBPF_DEBUG)
 		return 0;
 	return vfprintf(stderr, format, args);
 }
@@ -185,18 +149,27 @@ static void sig_handler(int sig)
 }
 
 static int handle_event(void *ctx, void *data, size_t data_sz)
-{
+{	
+
+	
 	const struct event *e = data;
 	struct tm *tm;
-	char ts[32];
+	char ts[64];
 	time_t t;
 	unsigned long stack = 0;
 	unsigned long stacks[MAX_STACK_DEPTH] = {0};
 
 	time(&t);
 	tm = localtime(&t);
-	strftime(ts, sizeof(ts), "%H:%M:%S", tm);
+	strftime(ts, sizeof(ts), "%m-%d_%H:%M:%S", tm);
 
+	char filename[NAMELIMIT] = {0};
+	strcpy(filename,e->comm);
+	strcat(filename,"_");
+	strcat(filename,ts);
+	printf("%s\n",filename);
+	chdir(logpath);
+	FILE* fp = fopen(filename,"w");
 	int ret = bpf_map__lookup_elem(
 		skel->maps.map_stack_traces,
 		&e->stack_id,
@@ -210,11 +183,11 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		printf("Error finding stack trace\n");
 		return 0;
 	}
-	printf(LIGHT_GREEN"%-8s"NONE" %-16s %-7s %-7s %-7s %-9s %s\n",
+	fprintf(fp,LIGHT_GREEN"%-14s"NONE" %-16s %-7s %-7s %-7s %-9s %s\n",
 		   "TIME", "COMM", "TID", "PID", "PPID", "EXIT CODE", "SIGNALS");
-	printf(LIGHT_GREEN"%-8s"NONE" %-16s %-7d %-7d %-7d %-9d %d\n",
+	fprintf(fp,LIGHT_GREEN"%-14s"NONE" %-16s %-7d %-7d %-7d %-9d %d\n",
 		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
-	printf("stack trace:\n");
+	fprintf(fp,"stack trace:\n");
 	for (int i = 0; i < MAX_STACK_DEPTH; i++)
 	{
 		stack = stacks[i];
@@ -223,7 +196,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			break;
 		}
 		int index = quiSymbol(stack);
-        printf("    %#lx %s+%#lx\n", stack,symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
+        fprintf(fp,"    %#lx %s+%#lx\n", stack,symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
 		// printf("    %#lx\n", stack);
 	}
 	// printf("%lx\n",e->count);
@@ -232,7 +205,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	const struct mmap_struct* curr;
 	for(int i=0;i<e->count;i++){
 		curr = &(e->mmap[i]);
-		printf("%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
+		fprintf(fp,"%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
 		curr->start,
 		curr->end,
 		curr->flags & VM_READ ? 'r' : '-',
@@ -246,12 +219,12 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			if(curr->name[i][0] == '\0' || curr->name[i][0] == '/'){
 				continue;
 			}
-			printf("/%s",curr->name[i]);
+			fprintf(fp,"/%s",curr->name[i]);
 		}
 		
-		printf("\n");
+		fprintf(fp,"\n");
 	}
-
+	fclose(fp);
 	return 0;
 }
 
@@ -265,11 +238,14 @@ int main(int argc, char **argv)
 	struct ring_buffer *rb = NULL;
 	int err;
 
-	/* Parse command line arguments */
-	err = argp_parse(&argp, argc, argv, 0, NULL, NULL);
-	if (err)
-		return err;
+	if(argc > 2){
+		return -1;
+	}
 
+	if(argc == 2)
+		strcpy(logpath,argv[1]);
+
+	printf("%s\n",logpath);
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 	/* Set up libbpf errors and debug info callback */
 	libbpf_set_print(libbpf_print_fn);
@@ -310,6 +286,10 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Failed to create ring buffer\n");
 		goto cleanup;
 	}
+	//
+	mkdir(logpath,S_IRWXU);
+    chdir(logpath);
+	//
 
 	/* Process events */
 

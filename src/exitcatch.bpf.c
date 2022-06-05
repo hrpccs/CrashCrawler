@@ -44,7 +44,7 @@ int BPF_KPROBE (kprobe__do_exit,long exitcode)
 	struct path filepath;
 	struct event *e;
 
-	if(exitcode == 0){ //exit normally
+	if(exitcode == 0 || exitcode >> 8 != 0 ){ //exit normally
 		return 0;
 	}
 

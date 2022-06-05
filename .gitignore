@@ -6,3 +6,4 @@ src/vmlinux.h
 src/*.skel.h
 src/libbpf
 .vscode/
+tmp/
