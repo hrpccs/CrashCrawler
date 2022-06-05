@@ -242,7 +242,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		curr->pgoff,
 		MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
 
-		for(int i=0;i<4;i++){
+		for(int i=0;i<MAX_LEVEL;i++){
 			if(curr->name[i][0] == '\0' || curr->name[i][0] == '/'){
 				continue;
 			}

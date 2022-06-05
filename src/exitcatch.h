@@ -27,13 +27,6 @@
 #define VM_MAYEXEC	0x00000040
 #define VM_MAYSHARE	0x00000080
 
-
-
-// enum vma_type {
-// 	file,
-	
-// }
-
 struct mmap_struct{
 	unsigned long start;
 	unsigned long end;
@@ -41,9 +34,7 @@ struct mmap_struct{
 	unsigned long long pgoff;
 	unsigned long ino;
 	dev_t dev;
-	unsigned int index;
-	// char name[MAX_LEVEL][MAXLEN_VMA_NAME+1]; //name
-	char name[4][MAXLEN_VMA_NAME+1];
+	char name[MAX_LEVEL][MAXLEN_VMA_NAME+1];
 };
 
 struct event{
