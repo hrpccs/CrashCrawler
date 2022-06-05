@@ -116,21 +116,21 @@ static int quiSymbol(long int query)
 
 static void initializeSysInfo()
 {
-    /*
-        硬件信息脚本
-        https://blog.csdn.net/LvJzzZ/article/details/112029991
-    */
-    FILE * fp;
-    fp=popen("bash ../src/hardware.sh","r");
-    while (1)
-    {
-        memset(sysinfo_buffer, 0, sizeof(sysinfo_buffer));
-        void* ptr = fgets(sysinfo_buffer,sizeof(sysinfo_buffer),fp);
-        if(ptr == NULL)
-            break;
-        printf("%s",sysinfo_buffer);
-    }
-    pclose(fp);
+	/*
+		硬件信息脚本
+		https://blog.csdn.net/LvJzzZ/article/details/112029991
+	*/
+	FILE *fp;
+	fp = popen("bash ../src/hardware.sh", "r");
+	while (1)
+	{
+		memset(sysinfo_buffer, 0, sizeof(sysinfo_buffer));
+		void *ptr = fgets(sysinfo_buffer, sizeof(sysinfo_buffer), fp);
+		if (ptr == NULL)
+			break;
+		printf("%s", sysinfo_buffer);
+	}
+	pclose(fp);
 }
 struct exitcatch_bpf *skel;
 
@@ -149,9 +149,8 @@ static void sig_handler(int sig)
 }
 
 static int handle_event(void *ctx, void *data, size_t data_sz)
-{	
+{
 
-	
 	const struct event *e = data;
 	struct tm *tm;
 	char ts[64];
@@ -164,12 +163,13 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	strftime(ts, sizeof(ts), "%m-%d_%H:%M:%S", tm);
 
 	char filename[NAMELIMIT] = {0};
-	strcpy(filename,e->comm);
-	strcat(filename,"_");
-	strcat(filename,ts);
-	printf("%s\n",filename);
+	strcpy(filename, e->comm);
+	strcat(filename, "_");
+	strcat(filename, ts);
+	strcat(filename, ".log");
+	printf("%s\n", filename);
 	chdir(logpath);
-	FILE* fp = fopen(filename,"w");
+	FILE *fp = fopen(filename, "w");
 	int ret = bpf_map__lookup_elem(
 		skel->maps.map_stack_traces,
 		&e->stack_id,
@@ -183,16 +183,17 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		printf("Error finding stack trace\n");
 		return 0;
 	}
-	fprintf(fp,"%-14s %-16s %-7s %-7s %-7s %-9s %s\n",
+	fprintf(fp, "%-14s %-16s %-7s %-7s %-7s %-9s %s\n",
+			"TIME", "COMM", "TID", "PID", "PPID", "EXIT CODE", "SIGNALS");
+	fprintf(fp, "%-14s %-16s %-7d %-7d %-7d %-9d %d\n",
+			ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
+	fprintf(fp, "Stack Trace:\n");
+	printf(HEAD "%-14s"
+				" %-16s %-7s %-7s %-7s %-9s %s" NONE "\n",
 		   "TIME", "COMM", "TID", "PID", "PPID", "EXIT CODE", "SIGNALS");
-	fprintf(fp,"%-14s %-16s %-7d %-7d %-7d %-9d %d\n",
+	printf(LIGHT_GREEN "%-14s" YELLOW " %-16s" NONE " %-7d %-7d %-7d" RED " %-9d %d\n" NONE,
 		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
-	fprintf(fp,"stack trace:\n");
-	printf(LIGHT_GREEN"%-14s"NONE" %-16s %-7s %-7s %-7s %-9s %s\n",
-		   "TIME", "COMM", "TID", "PID", "PPID", "EXIT CODE", "SIGNALS");
-	printf(LIGHT_GREEN"%-14s"NONE" %-16s %-7d %-7d %-7d %-9d %d\n",
-		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
-	printf("stack trace:\n");
+	printf(YELLOW "Stack Trace:\n" NONE);
 	for (int i = 0; i < MAX_STACK_DEPTH; i++)
 	{
 		stack = stacks[i];
@@ -201,44 +202,49 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			break;
 		}
 		int index = quiSymbol(stack);
-        fprintf(fp,"    %#lx %s+%#lx\n", stack,symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
-        printf("    %#lx %s+%#lx\n", stack,symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
+		fprintf(fp, "    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
+		printf("    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
 		// printf("    %#lx\n", stack);
 	}
 	// printf("%lx\n",e->count);
 
 	// share lib
+	printf(YELLOW "[Dependencies] Dynamic Libs:" NONE "\n");
+	fprintf(fp, "[Dependencies] Dynamic Libs:\n");
 	const struct mmap_struct *curr;
 	for (int i = 0; i < e->count; i++)
 	{
 		curr = &(e->mmap[i]);
-		fprintf(fp,"%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
-		curr->start,
-		curr->end,
-		curr->flags & VM_READ ? 'r' : '-',
-		curr->flags & VM_WRITE ? 'w' : '-',
-		curr->flags & VM_EXEC ? 'x' : '-',
-		curr->flags & VM_MAYSHARE ? 's' : 'p',
-		curr->pgoff,
-		MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
+		fprintf(fp, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
+				curr->start,
+				curr->end,
+				curr->flags & VM_READ ? 'r' : '-',
+				curr->flags & VM_WRITE ? 'w' : '-',
+				curr->flags & VM_EXEC ? 'x' : '-',
+				curr->flags & VM_MAYSHARE ? 's' : 'p',
+				curr->pgoff,
+				MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
 		printf("%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
-		curr->start,
-		curr->end,
-		curr->flags & VM_READ ? 'r' : '-',
-		curr->flags & VM_WRITE ? 'w' : '-',
-		curr->flags & VM_EXEC ? 'x' : '-',
-		curr->flags & VM_MAYSHARE ? 's' : 'p',
-		curr->pgoff,
-		MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
+			   curr->start,
+			   curr->end,
+			   curr->flags & VM_READ ? 'r' : '-',
+			   curr->flags & VM_WRITE ? 'w' : '-',
+			   curr->flags & VM_EXEC ? 'x' : '-',
+			   curr->flags & VM_MAYSHARE ? 's' : 'p',
+			   curr->pgoff,
+			   MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
 
-		for(int i=0;i<MAX_LEVEL;i++){
-			if(curr->name[i][0] == '\0' || curr->name[i][0] == '/'){
+		for (int i = 0; i < MAX_LEVEL; i++)
+		{
+			if (curr->name[i][0] == '\0' || curr->name[i][0] == '/')
+			{
 				continue;
 			}
-			fprintf(fp,"/%s",curr->name[i]);
-			printf("/%s",curr->name[i]);
+			fprintf(fp, "/%s", curr->name[i]);
+			printf("/%s", curr->name[i]);
 		}
-		
+
+		fprintf(fp, "\n");
 		printf("\n");
 	}
 	fclose(fp);
@@ -255,14 +261,15 @@ int main(int argc, char **argv)
 	struct ring_buffer *rb = NULL;
 	int err;
 
-	if(argc > 2){
+	if (argc > 2)
+	{
 		return -1;
 	}
 
-	if(argc == 2)
-		strcpy(logpath,argv[1]);
+	if (argc == 2)
+		strcpy(logpath, argv[1]);
 
-	printf("%s\n",logpath);
+	printf(BLUE "Log will be saved in: %s" NONE "\n", logpath);
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 	/* Set up libbpf errors and debug info callback */
 	libbpf_set_print(libbpf_print_fn);
@@ -304,8 +311,8 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 	//
-	mkdir(logpath,S_IRWXU);
-    chdir(logpath);
+	mkdir(logpath, S_IRWXU);
+	chdir(logpath);
 	//
 
 	/* Process events */

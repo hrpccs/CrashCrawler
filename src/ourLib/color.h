@@ -16,4 +16,5 @@
     #define BROWN        "\033[0;33m"
     #define YELLOW       "\033[1;33m"
     #define WHITE        "\033[1;37m"
+    #define HEAD          "\033[1;30;42m"
 #endif
