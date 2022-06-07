@@ -11,9 +11,9 @@ To compile this project, you need libbpf with CO-RE and a linux kernel that supp
 check [阶段性开发文档.md](doc\阶段性开发文档.md)
 
 ### Primary Round Submit
-You can refer to our primary round ##submit reprot## in `./doc/SYSU-160 CrashCrawler开发文档.md`. 
+You can refer to our primary round `submit reprot` in `./doc/SYSU-160 CrashCrawler开发文档.md`. 
 
-We also prepare our ##introducing PPT## in `./doc/Crashcrawler_SYSU.pptx`. 
+We also prepare our `introducing PPT` in `./doc/Crashcrawler_SYSU.pptx`. 
 
 If needed, you can also refer to our source code in `./src` and build them in `./build` with our makefile.
 
