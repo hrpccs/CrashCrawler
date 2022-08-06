@@ -2,18 +2,20 @@
 
 Developing the *CrashCrawler* for https://github.com/oscomp/proj160-osmatch-crash-collection
 
+You can also reffer our github https://github.com/hrpccs/OScomp
+
 We build this CrashCrawler application with C and eBPF program with libbpf with CO-RE
 
 To compile this project, you need libbpf with CO-RE and a linux kernel that supports eBPF and provide BTF 
 
 ### Develop document
 
-check [阶段性开发文档.md](doc\阶段性开发文档.md)
+check [5_15_阶段性开发文档.md](doc\阶段性开发文档.md)
 
 ### Primary Round Submit
-You can refer to our primary round `submit reprot` in `./doc/SYSU-160 CrashCrawler开发文档.md`. 
+You can refer to our primary round **submit reprot** in `./doc/SYSU-160 CrashCrawler开发文档.md`. 
 
-We also prepare our `introducing PPT` in `./doc/Crashcrawler_SYSU.pptx`. 
+We also prepare our **introducing PPT** in `./doc/Crashcrawler_SYSU.pptx`. 
 
 If needed, you can also refer to our source code in `./src` and build them in `./build` with our makefile.
 
