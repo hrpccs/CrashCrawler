@@ -171,8 +171,8 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	chdir(logpath);
 	FILE *fp = fopen(filename, "w");
 	int ret = bpf_map__lookup_elem(
-		skel->maps.map_stack_traces,
-		&e->stack_id,
+		skel->maps.map_kernel_stack_traces,
+		&e->kernel_stack_id,
 		sizeof(unsigned int),
 		&stacks,
 		VALUESIZE,
@@ -180,7 +180,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 
 	if (ret != 0)
 	{
-		printf("Error finding stack trace\n");
+		printf("Error finding Kernel stack trace\n");
 		return 0;
 	}
 	fprintf(fp, "%-14s %-16s %-7s %-7s %-7s %-9s %s\n",
@@ -192,7 +192,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		   "TIME", "COMM", "TID", "PID", "PPID", "EXIT CODE", "SIGNALS");
 	printf(LIGHT_GREEN "%-14s" YELLOW " %-16s" NONE " %-7d %-7d %-7d" RED " %-9d %d\n" NONE,
 		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
-	printf(YELLOW "Stack Trace:\n" NONE);
+	printf(YELLOW "Kernel Stack Trace:\n" NONE);
 	for (int i = 0; i < MAX_STACK_DEPTH; i++)
 	{
 		stack = stacks[i];
@@ -206,6 +206,34 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		// printf("    %#lx\n", stack);
 	}
 	// printf("%lx\n",e->count);
+
+	//Get and print User stacktrace
+	ret = bpf_map__lookup_elem(
+		skel->maps.map_user_stack_traces,
+		&e->user_stack_id,
+		sizeof(unsigned int),
+		&stacks,
+		VALUESIZE,
+		0);
+
+	if (ret != 0)
+	{
+		printf("Error finding User stack trace\n");
+		return 0;
+	}
+	printf(PURPLE "User Stack Trace:\n" NONE);
+	for (int i = 0; i < MAX_STACK_DEPTH; i++)
+	{
+		stack = stacks[i];
+		if (stack == 0)
+		{
+			break;
+		}
+		// int index = quiSymbol(stack);
+		// fprintf(fp, "    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
+		// printf("    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
+		printf("    %#lx\n", stack);
+	}
 
 	// share lib
 	printf(YELLOW "[Dependencies] Dynamic Libs:" NONE "\n");
