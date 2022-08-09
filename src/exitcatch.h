@@ -44,7 +44,8 @@ struct event{
 		int sig;
 		int exit_code;
 		char comm[TASK_COMM_LEN];
-		unsigned long stack_id;
+		unsigned long kernel_stack_id;
+		unsigned long user_stack_id;
 		unsigned long count;
 		struct mmap_struct mmap[MAX_VMA_ENTRY];
 };

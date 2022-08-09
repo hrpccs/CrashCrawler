@@ -21,7 +21,15 @@ struct
 	__uint(key_size, sizeof(u32));
 	__uint(value_size, VALUESIZE);
 	__uint(max_entries, 8192);
-} map_stack_traces SEC(".maps");
+} map_kernel_stack_traces SEC(".maps");
+
+struct
+{
+	__uint(type, BPF_MAP_TYPE_STACK_TRACE);
+	__uint(key_size, sizeof(u32));
+	__uint(value_size, VALUESIZE);
+	__uint(max_entries, 8192);
+} map_user_stack_traces SEC(".maps");
 
 static char *simple_dname(const struct dentry *dentry, char *buffer, int buflen)
 {
@@ -54,6 +62,7 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 	// get information in task_struct
 	task = (struct task_struct *)bpf_get_current_task();
 	vma = BPF_CORE_READ(task, mm, mmap);
+	
 
 	long long temp = 0;
 	char *tptr = 0;
@@ -62,7 +71,8 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 	e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
 	if (e)
 	{
-		e->stack_id = bpf_get_stackid(ctx, &map_stack_traces, 0);
+		e->kernel_stack_id = bpf_get_stackid(ctx, &map_kernel_stack_traces, 0);
+		e->user_stack_id = bpf_get_stackid(ctx, &map_user_stack_traces, BPF_F_USER_STACK);
 		e->exit_code = exitcode >> 8;
 		e->sig = exitcode & 0xff;
 		e->pid = BPF_CORE_READ(task, tgid);
