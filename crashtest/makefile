@@ -1,4 +1,4 @@
-CFLAGS = -O3 -fopenmp
+CFLAGS = -fopenmp
 CC = $(shell which gcc)
 multiThread.bin: multiThread_SegFault.c
 	$(CC) $(CFLAGS) -I.  multiThread_SegFault.c -o multiThread.bin

@@ -7,6 +7,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/resource.h>
@@ -148,9 +149,16 @@ static void sig_handler(int sig)
 	exiting = true;
 }
 
+struct RelaventFile {
+	char exec_file_path[MAX_LEVEL * MAXLEN_VMA_NAME + MAX_LEVEL];
+	unsigned long segment_start;
+	unsigned long segment_end;
+};
+
 static int handle_event(void *ctx, void *data, size_t data_sz)
 {
-
+	struct RelaventFile* files;
+	int file_count=0;
 	const struct event *e = data;
 	struct tm *tm;
 	char ts[64];
@@ -236,9 +244,44 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	}
 
 	// share lib
+	const struct mmap_struct *curr;
+	// get relavent files count
+	int last_inode = -1;
+	for (int i = 0; i < e->count;i++){
+		curr = &(e->mmap[i]);
+		if((curr->flags & VM_EXEC) && curr->ino != last_inode){
+			last_inode = curr->ino;	
+			file_count++;
+		}
+	}
+
+	printf("files count :%d\n",file_count);
+
+	files = (struct RelaventFile*)malloc(sizeof(struct RelaventFile) * file_count);
+
+	last_inode = -1;
+	for (int i = 0,j = 0; i < e->count;i++){
+		curr = &(e->mmap[i]);
+		if((curr->flags & VM_EXEC) && curr->ino != last_inode){
+			files[j].segment_end = curr->end;
+			files[j].segment_start = curr->start;
+			int index = 0;
+			for(int level = 0;level < MAX_LEVEL;level++){
+				if (curr->name[level][0] == '\0' || curr->name[level][0] == '/')
+				{
+					continue;
+				}
+				index += sprintf(files[j].exec_file_path + index,"/%s",curr->name[level]);
+			}
+			files[j].exec_file_path[index] = '\0';
+			printf("%08lx-%08lx path:%s\n",files[j].segment_start,files[j].segment_end,files[j].exec_file_path);
+			last_inode = curr->ino;	
+			j++;
+		}
+	}
+
 	printf(YELLOW "[Dependencies] Dynamic Libs:" NONE "\n");
 	fprintf(fp, "[Dependencies] Dynamic Libs:\n");
-	const struct mmap_struct *curr;
 	for (int i = 0; i < e->count; i++)
 	{
 		curr = &(e->mmap[i]);
@@ -286,6 +329,7 @@ int main(int argc, char **argv)
 
 	printf(YELLOW ">>>>>>>Finished initializing...\n" NONE);
 	// sudo mount -t debugfs none /sys/kernel/debug
+	LIBBPF_OPTS(bpf_object_open_opts, open_opts);
 	struct ring_buffer *rb = NULL;
 	int err;
 
@@ -307,7 +351,9 @@ int main(int argc, char **argv)
 	signal(SIGTERM, sig_handler);
 
 	/* Load and verify BPF application */
-	skel = exitcatch_bpf__open();
+
+	open_opts.btf_custom_path = "/tmp/WSL2.btf";
+	skel = exitcatch_bpf__open_opts(&open_opts);
 	if (!skel)
 	{
 		fprintf(stderr, "Failed to open and load BPF skeleton\n");
