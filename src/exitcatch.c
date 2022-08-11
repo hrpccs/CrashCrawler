@@ -100,7 +100,7 @@ static void initializeSym()
 		++symList.length;
 	}
 }
-static int quiSymbol(long int query)
+static int kenerlSymbol(long int query)
 {
 	int left = 0, right = symList.length;
 	while (left < right)
@@ -208,7 +208,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		{
 			break;
 		}
-		int index = quiSymbol(stack);
+		int index = kenerlSymbol(stack);
 		fprintf(fp, "    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
 		printf("    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
 		// printf("    %#lx\n", stack);
@@ -237,7 +237,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		{
 			break;
 		}
-		// int index = quiSymbol(stack);
+		// int index = kenerlSymbol(stack);
 		// fprintf(fp, "    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
 		// printf("    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
 		printf("    %#lx\n", stack);
