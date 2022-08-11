@@ -434,6 +434,7 @@ int main(int argc, char **argv)
 
 	printf(YELLOW ">>>>>>>Finished initializing...\n" NONE);
 	// sudo mount -t debugfs none /sys/kernel/debug
+	LIBBPF_OPTS(bpf_object_open_opts, open_opts);
 	struct ring_buffer *rb = NULL;
 	int err;
 
@@ -455,7 +456,8 @@ int main(int argc, char **argv)
 	signal(SIGTERM, sig_handler);
 
 	/* Load and verify BPF application */
-	skel = exitcatch_bpf__open();
+	open_opts.btf_custom_path = "/sys/kernel/btf/vmlinux";
+	skel = exitcatch_bpf__open_opts(&open_opts);
 	if (!skel)
 	{
 		fprintf(stderr, "Failed to open and load BPF skeleton\n");
