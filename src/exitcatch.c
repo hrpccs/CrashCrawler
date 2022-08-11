@@ -319,6 +319,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	}
 	fprintf(fp, "\n");
 	fclose(fp);
+	free(files);
 	return 0;
 }
 
