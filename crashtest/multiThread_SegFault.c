@@ -1,15 +1,18 @@
 #include <stdio.h>
 #include <omp.h>
 #include<color.h>
+#include <unistd.h>
 #include <sys/types.h>
 void crashtest_3()
 {
     // #pragma omp parallel for
     for (int i = 0; i < 4; i++)
     {
-        printf("My Tid is % 8d\n", gettid());
+        printf("My Tid is % 8d\n", getpid());
         int *ptr = (void *)crashtest_3;
-        // for (int i = 0; i < 100000000000000; i++);
+        for (int j = 0; j < 10000000; j++){
+            getpid();
+        }
         printf("attend to write read only mem %p\n", ptr);
         if(i == 3)
             *ptr = 1000;

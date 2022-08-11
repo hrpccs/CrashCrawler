@@ -48,6 +48,20 @@ struct event{
 		unsigned long user_stack_id;
 		unsigned long count;
 		struct mmap_struct mmap[MAX_VMA_ENTRY];
+		
+		//sched
+		unsigned int policy;
+		int prio;
+		int static_prio;
+		int normal_prio;
+		unsigned int rt_priority;
+
+		//time and clock
+		unsigned long long utime;
+		unsigned long long stime;
+		unsigned long long gtime;
+		unsigned long long start_time;
+		unsigned long long start_boottime;
 };
 
 
