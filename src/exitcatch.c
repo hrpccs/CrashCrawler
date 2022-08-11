@@ -43,6 +43,12 @@ typedef struct
 	symbolNode nodeArray[LISTLIMT];
 	int length;
 } symbolList;
+
+struct RelaventFile {
+	char exec_file_path[MAX_LEVEL * MAXLEN_VMA_NAME + MAX_LEVEL];
+	unsigned long segment_start;
+	unsigned long segment_end;
+};
 symbolList symList;
 
 static int char2int(char c)
@@ -100,7 +106,7 @@ static void initializeSym()
 		++symList.length;
 	}
 }
-static int kenerlSymbol(long int query)
+static int searchKernelSymbol(unsigned long query)
 {
 	int left = 0, right = symList.length;
 	while (left < right)
@@ -114,7 +120,100 @@ static int kenerlSymbol(long int query)
 	left = left > 0 ? --left : left;
 	return left;
 }
-
+static int searchUserFile(unsigned long query, struct RelaventFile* files, int fileCount)
+{
+	int left = 0, right = fileCount - 1;
+	while (left < right)
+	{
+		int mid = (left + right) / 2;
+		if (files[mid].segment_start >= query)
+			right = mid;
+		else
+			left = mid + 1;
+	}
+	left = left > 0 ? --left : left;
+	return left;
+}
+static int userstackNameSearch(unsigned long virtualAddr, const char* filePath, char* stackFunctionName)
+{
+    /*
+        userstackNameSearch is used to search for the symbol name of a specific
+        virtual address in user stack.
+        input:
+            virtualAddr: specific address of memory;
+            filePath: binary Path of the specific tmpAddr;
+            stackFunctionName: the return name of a stack;
+        output: return a int indicate whether is a successful search;
+            0: successful search;
+            1: failed;
+    */
+    FILE *fp;
+    unsigned long offset = 0, physicalAddr = 0, flag = 1, stackAddr = 0;
+    char cmd[NAMELIMIT];
+    memset(stackFunctionName, 0, sizeof(stackFunctionName));
+    /*
+        Reading offset
+    */
+    memset(cmd, 0, sizeof(cmd));
+    sprintf(cmd, "readelf -l %s | awk '$4==\"E\"{print x};{x=$2}'", filePath);
+    // printf("%s\n", cmd);
+    fp = popen(cmd, "r");
+    fscanf(fp, "%lx", &offset);
+    // printf("0x%lx\n", offset);
+    physicalAddr = virtualAddr + offset;
+    pclose(fp);
+    /*
+        Reading function symbols
+    */
+    memset(cmd, 0, sizeof(cmd));
+    sprintf(cmd, "nm -n -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
+    // printf("%s\n", cmd);
+    fp = popen(cmd, "r");
+    char tmpName[NAMELIMIT] = {0};
+    while (1)
+    {
+        fscanf(fp, "%lx", &stackAddr);
+        if(physicalAddr < stackAddr)
+        {
+            flag = 0;
+            break;
+        }
+        fscanf(fp, "%s", tmpName);
+        offset = physicalAddr - stackAddr;
+        if(!tmpName[0])
+            break;
+        // printf("%016x %s\n", stackAddr, tmpName);
+    }
+    if(!flag)
+    {
+        sprintf(stackFunctionName,"%s+0x%lx",tmpName,offset);
+        return flag;
+    }
+    // Looking for the stack in the dynamic Libs
+    memset(cmd, 0, sizeof(cmd));
+    sprintf(cmd, "nm -n -C -D %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
+    // printf("%s\n", cmd);
+    fp = popen(cmd, "r");
+    while (1)
+    {
+        fscanf(fp, "%lx", &stackAddr);
+        if(physicalAddr < stackAddr)
+        {
+            flag = 0;
+            break;
+        }
+        fscanf(fp, "%s", tmpName);
+        offset = physicalAddr - stackAddr;
+        if(!tmpName[0])
+            break;
+        // printf("%016x %s\n", stackAddr, tmpName);
+    }
+    if(!flag)
+        sprintf(stackFunctionName,"%s+0x%lx",tmpName,offset);
+    else
+        sprintf(stackFunctionName,"[No Function Name]");
+    return flag;
+}
 static void initializeSysInfo()
 {
 	/*
@@ -148,12 +247,6 @@ static void sig_handler(int sig)
 {
 	exiting = true;
 }
-
-struct RelaventFile {
-	char exec_file_path[MAX_LEVEL * MAXLEN_VMA_NAME + MAX_LEVEL];
-	unsigned long segment_start;
-	unsigned long segment_end;
-};
 
 static int handle_event(void *ctx, void *data, size_t data_sz)
 {
@@ -208,7 +301,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		{
 			break;
 		}
-		int index = kenerlSymbol(stack);
+		int index = searchKernelSymbol(stack);
 		fprintf(fp, "    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
 		printf("    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
 		// printf("    %#lx\n", stack);
@@ -229,20 +322,6 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		printf("Error finding User stack trace\n");
 		return 0;
 	}
-	printf(PURPLE "User Stack Trace:\n" NONE);
-	for (int i = 0; i < MAX_STACK_DEPTH; i++)
-	{
-		stack = stacks[i];
-		if (stack == 0)
-		{
-			break;
-		}
-		// int index = kenerlSymbol(stack);
-		// fprintf(fp, "    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
-		// printf("    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
-		printf("    %#lx\n", stack);
-	}
-
 	// share lib
 	const struct mmap_struct *curr;
 	// get relavent files count
@@ -255,7 +334,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		}
 	}
 
-	printf("files count :%d\n",file_count);
+	// printf("files count :%d\n",file_count);
 
 	files = (struct RelaventFile*)malloc(sizeof(struct RelaventFile) * file_count);
 
@@ -274,11 +353,30 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 				index += sprintf(files[j].exec_file_path + index,"/%s",curr->name[level]);
 			}
 			files[j].exec_file_path[index] = '\0';
-			printf("%08lx-%08lx path:%s\n",files[j].segment_start,files[j].segment_end,files[j].exec_file_path);
+			// printf("%08lx-%08lx path:%s\n",files[j].segment_start,files[j].segment_end,files[j].exec_file_path);
 			last_inode = curr->ino;	
 			j++;
 		}
 	}
+
+	printf(YELLOW "User Stack Trace:\n" NONE);
+	char stackFunctionName[NAMELIMIT] = {0};
+	for (int i = 0; i < MAX_STACK_DEPTH; i++)
+	{
+		stack = stacks[i];
+		if (stack == 0)
+		{
+			break;
+		}
+		int index = searchUserFile(stack,files,file_count);
+		int searchResult = userstackNameSearch(stack - files[index].segment_start, (const char*)files[index].exec_file_path, stackFunctionName);
+		// fprintf(fp, "    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
+		// printf("    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
+		// printf("    %#lx\n", stack);
+		fprintf(fp, "    %#lx %s\n", stack, stackFunctionName);
+		printf("    %#lx %s\n", stack, stackFunctionName);
+	}
+
 
 	printf(YELLOW "[Dependencies] Dynamic Libs:" NONE "\n");
 	fprintf(fp, "[Dependencies] Dynamic Libs:\n");
