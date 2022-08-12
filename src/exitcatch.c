@@ -279,7 +279,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	strcat(filename, "_");
 	strcat(filename, ts);
 	strcat(filename, ".log");
-	printf(YELLOW"\n		%s\n"NONE, filename);
+	printf(YELLOW"\n			  %s\n"NONE, filename);
 	chdir(logpath);
 	FILE *fp = fopen(filename, "w");
 	int ret = bpf_map__lookup_elem(
@@ -379,7 +379,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		{
 			break;
 		}
-		printf("%8lx",stack);
+		// printf("%8lx",stack);
 		int index = searchUserFile(stack,files,file_count);
 		int searchResult = userstackNameSearch(stack - files[index].segment_start, (const char*)files[index].exec_file_path, stackFunctionName);
 		// fprintf(fp, "    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
