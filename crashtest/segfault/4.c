@@ -4,12 +4,8 @@
 void crashtest_3()
 {
     // #pragma omp parallel for
-    for (int i = 0; i < 4; i++)
-    {
-        // printf("My Tid is % 8d\n", gettid());
-        int b = 0;
-        int a = 1/b;
-    }
+    int *p = NULL;
+    *p = 1;
 }
 void crashtest_2()
 {
@@ -21,6 +17,7 @@ void crashtest_1()
 }
 int main()
 {
+    printf("[Segfault] Visiting the NULL pointer\n");
     crashtest_3();
     return 0;
 }

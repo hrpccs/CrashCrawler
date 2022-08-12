@@ -377,7 +377,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	for (int i = 0; i < e->count; i++)
 	{
 		curr = &(e->mmap[i]);
-		fprintf(fp, "0x%08lx-0x%08lx %c%c%c%c %08llx %02x:%02x %lu ",
+		fprintf(fp, "0x%016lx-0x%016lx %c%c%c%c %08llx %02x:%02x %lu ",
 				curr->start,
 				curr->end,
 				curr->flags & VM_READ ? 'r' : '-',
@@ -386,7 +386,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 				curr->flags & VM_MAYSHARE ? 's' : 'p',
 				curr->pgoff,
 				MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
-		printf("0x%08lx-0x%08lx %c%c%c%c %08llx %02x:%02x %lu ",
+		printf("0x%016lx-0x%016lx %c%c%c%c %08llx %02x:%02x %lu ",
 			   curr->start,
 			   curr->end,
 			   curr->flags & VM_READ ? 'r' : '-',

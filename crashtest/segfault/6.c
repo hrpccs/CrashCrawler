@@ -1,15 +1,11 @@
-#include <stdio.h>
+ #include <stdio.h>
 #include <omp.h>
 #include <sys/types.h>
 void crashtest_3()
 {
     // #pragma omp parallel for
-    for (int i = 0; i < 4; i++)
-    {
-        // printf("My Tid is % 8d\n", gettid());
-        int b = 0;
-        int a = 1/b;
-    }
+    int b = 10;
+    printf("%s\n", b); 
 }
 void crashtest_2()
 {
@@ -21,6 +17,7 @@ void crashtest_1()
 }
 int main()
 {
+    printf("[Segfault] Printing the number in string form...\n");
     crashtest_3();
     return 0;
 }

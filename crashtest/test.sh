@@ -1,4 +1,26 @@
 #! /bin/bash
+echo "=============================================="
+echo "Running the test script written for OScomp..."
+echo "Crashcrawler is developed by Hong Ruipeng & Tang Zhe"
+echo "The test scripts is written by Tang Zhe"
+echo "Aug 12, 2022"
+echo "=============================================="
 SCRIPT_PATH=`realpath $0`
-echo "$SCRIPT_PATH"
+BASE_DIR=`dirname $SCRIPT_PATH`
+SEGFAULT_PATH="$BASE_DIR/segfault"
+
+CC=$(which gcc)
+# echo $BASE_DIR
+
+pushd $SEGFAULT_PATH
+    echo "Begin segment fault test..."
+    for cnt in {1..7}
+    do
+        SRC="$cnt.c"
+        BIN="$cnt.bin"
+        $CC $SRC -o $BIN
+        ./$BIN
+    done
+    rm -rf *.bin
+popd
 # push

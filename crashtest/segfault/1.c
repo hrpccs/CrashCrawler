@@ -21,6 +21,7 @@ void crashtest_1()
 }
 int main()
 {
+    printf("[Segfault] Divide by Zero...\n");
     crashtest_3();
     return 0;
 }
