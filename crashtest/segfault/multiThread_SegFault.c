@@ -2,6 +2,7 @@
 #include <omp.h>
 #include<color.h>
 #include <sys/types.h>
+#include <unistd.h>
 void crashtest_3()
 {
     // #pragma omp parallel for
@@ -9,7 +10,9 @@ void crashtest_3()
     {
         printf("My Tid is % 8d\n", gettid());
         int *ptr = (void *)crashtest_3;
-        // for (int i = 0; i < 100000000000000; i++);
+        for (int i = 0; i < 1000000; i++){
+            getpid();
+        }
         printf("attend to write read only mem %p\n", ptr);
         if(i == 3)
             *ptr = 1000;

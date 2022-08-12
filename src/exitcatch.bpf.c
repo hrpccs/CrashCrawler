@@ -99,6 +99,10 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 
 		e->flags = BPF_CORE_READ(task, flags);
 
+		e->num_threads = BPF_CORE_READ(task, signal, nr_threads);
+
+		e->prio = BPF_CORE_READ(task, prio);
+
 		e->start_time = BPF_CORE_READ(task, start_time);	
 		e->cutime = BPF_CORE_READ(task, signal, cutime);
 		e->cstime = BPF_CORE_READ(task, signal, cstime);
