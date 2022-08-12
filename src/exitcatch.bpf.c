@@ -42,6 +42,30 @@ static char *simple_dname(const struct dentry *dentry, char *buffer, int buflen)
 	return buffer + buflen + 1;
 }
 
+static pid_t pid_nr_ns(struct pid * pid, struct pid_namespace* ns){
+	struct upid *upid;
+	pid_t nr = 0;
+	int nslevel = BPF_CORE_READ(ns, level);
+	int pidlevel = BPF_CORE_READ(pid, level);
+	const struct upid * upidptr = BPF_CORE_READ(pid, numbers) + nslevel;
+	struct pid_namesapce* upidns = BPF_CORE_READ(upidptr,ns);	
+
+	if (pid && nslevel <= pidlevel && upidns == ns) {
+			nr = upid->nr;
+	}
+	return nr;
+}
+
+static unsigned long get_rsslim(struct signal_struct* sig){
+	struct rlimit* rlimptr = BPF_READ_CORE(sig, rlim);
+	return BPF_READ_CORE(rlimptr + RLIMIT_RSS, rlim_cur);
+}
+
+
+static unsigned long get_mm_count(struct mm_struct* mm){
+	
+}
+
 // the path in the debugfs, and debugfs need to be mounted
 // SEC("tp/sched/sched_process_exit")
 // int trace_event_raw_sched_process_exit(void *ctx)
@@ -50,6 +74,7 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 {
 	struct task_struct *task;
 	struct vm_area_struct *vma;
+	struct mm_struct* mm;
 	struct file *file;
 	struct path filepath;
 	struct event *e;
@@ -62,6 +87,7 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 	// get information in task_struct
 	task = (struct task_struct *)bpf_get_current_task();
 	vma = BPF_CORE_READ(task, mm, mmap);
+	mm = BPF_CORE_READ(task,mm);
 	
 
 	long long temp = 0;
@@ -79,8 +105,34 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 		e->tid = BPF_CORE_READ(task, pid);
 		e->ppid = BPF_CORE_READ(task, parent, pid);
 		bpf_get_current_comm(&(e->comm), TASK_COMM_LEN);
-		int count = 0;
 
+		e->flags = BPF_CORE_READ(task, flags);
+
+		e->start_time = BPF_CORE_READ(task, start_time);	
+		e->cutime = BPF_CORE_READ(task, signal, cutime);
+		e->cstime = BPF_CORE_READ(task, signal, cstime);
+		e->cgtime = BPF_CORE_READ(task, signal, cgtime);
+		e->gtime = BPF_CORE_READ(task, gtime);
+		e->utime = BPF_CORE_READ(task, utime);
+		e->stime = BPF_CORE_READ(task, stime);
+
+		e->min_flt = BPF_CORE_READ(task, min_flt);
+		e->maj_flt = BPF_CORE_READ(task, maj_flt);
+		e->cmaj_flt = BPF_CORE_READ(task, signal, cmin_flt);
+		e->cmin_flt = BPF_CORE_READ(task, signal, cmaj_flt);
+
+		e->mm_vsize = PAGE_SIZE * BPF_CORE_READ(mm,total_vm);
+		e->rsslim = get_rsslim(BPF_CORE_READ(task, signal));
+		e->mm_start_code = BPF_CORE_READ(mm, start_code);
+		e->mm_end_code = BPF_CORE_READ(mm, end_code);
+		e->mm_start_stack = BPF_CORE_READ(mm, start_stack);
+		e->mm_rss = get_mm_rss(mm);
+		
+
+		
+		//get file mapping 
+
+		int count = 0;
 #pragma unroll
 		for (int i = 0; i < MAX_VMA_ENTRY; i++)
 		{

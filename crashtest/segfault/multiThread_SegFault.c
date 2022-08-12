@@ -4,7 +4,7 @@
 #include <sys/types.h>
 void crashtest_3()
 {
-    #pragma omp parallel for
+    // #pragma omp parallel for
     for (int i = 0; i < 4; i++)
     {
         printf("My Tid is % 8d\n", gettid());
@@ -17,15 +17,17 @@ void crashtest_3()
 }
 void crashtest_2()
 {
+    printf("crashtest_2\n");
     crashtest_3();
 }
 void crashtest_1()
 {
+    printf("crashtest_1\n");
     crashtest_2();
 }
 int main()
 {
-    crashtest_3();
+    crashtest_1();
     // printf(NONE"Test\n"NONE);
     // printf(LIGHT_BLUE"Test\n"NONE);
     // printf(LIGHT_CYAN"Test\n"NONE);

@@ -9,8 +9,21 @@
 // should get from kernel header ?
 #define MAX_VMA_ENTRY 35
 #define MAXLEN_VMA_NAME 64
-#define MAX_LEVEL 7
+#define MAX_LEVEL 8
 #define PAGE_SHIFT 13 //8KB differs from kernels
+#define PAGE_SIZE 
+//from /include/linux/sched/prio.h
+#define MAX_NICE	19
+#define MIN_NICE	-20
+#define NICE_WIDTH	(MAX_NICE - MIN_NICE + 1)
+
+#define MAX_USER_RT_PRIO	100
+#define MAX_RT_PRIO		MAX_USER_RT_PRIO
+#define MAX_PRIO		(MAX_RT_PRIO + NICE_WIDTH)
+#define DEFAULT_PRIO		(MAX_RT_PRIO + NICE_WIDTH / 2)
+//from /include/linux/kdev_t.h
+#define MKDEV(ma,mi)	(((ma) << MINORBITS) | (mi))
+
 //from /include/linux/kdev.h
 #define MAJOR(dev)	((dev)>>8)
 #define MINOR(dev)	((dev) & 0xff)
@@ -27,6 +40,12 @@
 #define VM_MAYEXEC	0x00000040
 #define VM_MAYSHARE	0x00000080
 
+
+//rom /linux/include/uapi/asm-generic/resource.h
+#ifndef RLIMIT_RSS
+# define RLIMIT_RSS		5	/* max resident set size */
+#endif
+
 struct mmap_struct{
 	unsigned long start;
 	unsigned long end;
@@ -38,16 +57,63 @@ struct mmap_struct{
 };
 
 struct event{
-		pid_t pid;
-		pid_t tid;
-		pid_t ppid;
-		int sig;
-		int exit_code;
-		char comm[TASK_COMM_LEN];
 		unsigned long kernel_stack_id;
 		unsigned long user_stack_id;
 		unsigned long count;
 		struct mmap_struct mmap[MAX_VMA_ENTRY];
+		int sig;
+		int exit_code;
+
+		pid_t pid;//1  done
+		pid_t tid;//  done
+		char comm[TASK_COMM_LEN];//2  done
+		long state; // + exit_state 3
+
+		pid_t ppid;//4 ppid  done
+		pid_t pgid;// 5 pgid
+		pid_t sid; //6 sid
+
+		//info in signal_struct
+		int sig_tty_index; //7 tty_nr
+		int sig_tty_driver_major;
+		int sig_tty_driver_minor_start;
+		int tty_pgrp;		//8 tty_pgrp
+		unsigned int flags; //9 task->flags;  done
+		
+		// int permitted; no need , because we are the boss
+		unsigned min_flt,maj_flt; //10 - 13  done
+		unsigned cmin_flt,cmaj_flt;
+
+		unsigned long long cutime; //14-17  done
+		unsigned long long cstime;
+		unsigned long long stime;
+		unsigned long long utime;
+		unsigned long long cgtime;  done
+		unsigned long long gtime;  done
+
+		int prio; //18 task->prio - MAX_RT_PRIO  done
+		int nice; //19 prio  - DEFAULT_PRIO
+		int num_threads; //20 task->signal->nr_threads;
+						//21 0
+		unsigned long long start_time; //22  done
+
+		unsigned long mm_vsize; //23  done
+		unsigned long mm_rss;						//24 mm_rss
+	    unsigned long rsslim; //24
+		unsigned long mm_start_code; //25  done
+		unsigned long mm_end_code; //26  done
+		unsigned long mm_start_stack; //27  done
+		unsigned long esp; //28
+		unsigned long eip; //29
+
+
+
+
+
+
+
+
+
 };
 
 
