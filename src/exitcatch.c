@@ -161,18 +161,19 @@ static int userstackNameSearch(unsigned long virtualAddr, const char* filePath, 
     fscanf(fp, "%lx", &offset);
     // printf("0x%lx\n", offset);
     physicalAddr = virtualAddr + offset;
+    printf("0x%lx\n", physicalAddr);
     pclose(fp);
     /*
         Reading function symbols
     */
     memset(cmd, 0, sizeof(cmd));
-    sprintf(cmd, "nm -n -D %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
-    // printf("%s\n", cmd);
+    sprintf(cmd, "nm -n -D -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
+    printf("%s\n", cmd);
     fp = popen(cmd, "r");
     char tmpName[NAMELIMIT] = {0};
-    while (1)
+    while (fscanf(fp, "%lx", &stackAddr) == 1)
     {
-        fscanf(fp, "%lx", &stackAddr);
+        // fscanf(fp, "%lx", &stackAddr);
         if(physicalAddr < stackAddr)
         {
             flag = 0;
@@ -180,29 +181,23 @@ static int userstackNameSearch(unsigned long virtualAddr, const char* filePath, 
         }
         fscanf(fp, "%s", tmpName);
         offset = physicalAddr - stackAddr;
-        if(!tmpName[0])
-            break;
+        // if(!tmpName[0])
+        //     break;
         // printf("%016x %s\n", stackAddr, tmpName);
     }
     if(!flag)
     {
         sprintf(stackFunctionName,"%s+0x%lx",tmpName,offset);
-		pclose(fp);
         return flag;
     }
-	// else
-	// {
-	// 	while(1)
-	// }
-	// printf(YELLOW"Hello World\b\n"NONE);
     // Looking for the stack in the dynamic Libs
     memset(cmd, 0, sizeof(cmd));
     sprintf(cmd, "nm -n -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
-    // printf("%s\n", cmd);
+    printf("%s\n", cmd);
     fp = popen(cmd, "r");
-    while (1)
+    while (fscanf(fp, "%lx", &stackAddr) == 1)
     {
-        fscanf(fp, "%lx", &stackAddr);
+        // fscanf(fp, "%lx", &stackAddr);
         if(physicalAddr < stackAddr)
         {
             flag = 0;
@@ -210,8 +205,8 @@ static int userstackNameSearch(unsigned long virtualAddr, const char* filePath, 
         }
         fscanf(fp, "%s", tmpName);
         offset = physicalAddr - stackAddr;
-        if(!tmpName[0])
-            break;
+        // if(!tmpName[0])
+        //     break;
         // printf("%016x %s\n", stackAddr, tmpName);
     }
     if(!flag)
