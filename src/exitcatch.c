@@ -242,6 +242,23 @@ static void sig_handler(int sig)
 	exiting = true;
 }
 
+static void printf_info(struct event* e){
+	//time
+	const long ns2s = 1000000000;
+	printf("user mode time: %10.2lfs\n",(double)(e->utime) / ns2s);
+	printf("system mode time: %10.2lfs\n",(double)(e->stime) / ns2s);
+	printf("task schedule priority: %ld\n", e->prio - MAX_RT_PRIO);
+	printf("task schedule nice: %ld\n", e->prio - DEFAULT_PRIO);
+	printf("number of thread : %ld\n", e->num_threads);
+
+
+	printf("Virtual Memory info:\n");
+	printf("");
+
+
+
+}
+
 static int handle_event(void *ctx, void *data, size_t data_sz)
 {
 	struct RelaventFile* files;
@@ -286,7 +303,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	printf(HEAD "%-14s %-16s %-7s %-7s %-7s %-9s %s" NONE "\n",
 		   "TIME", "COMM", "TID", "PID", "PPID", "EXIT CODE", "SIGNALS");
 	printf(LIGHT_GREEN "%-14s" YELLOW " %-16s" NONE " %-7d %-7d %-7d" RED " %-9d %d\n" NONE,
-		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
+		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);	
 	printf(YELLOW "Kernel Stack Trace:\n" NONE);
 	for (int i = 0; i < MAX_STACK_DEPTH; i++)
 	{
@@ -410,6 +427,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		fprintf(fp, "\n");
 		printf("\n");
 	}
+	printf_info(e);
 	fprintf(fp, "\n");
 	fclose(fp);
 	free(files);

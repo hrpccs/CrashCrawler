@@ -67,50 +67,48 @@ struct event{
 		pid_t pid;//1  done
 		pid_t tid;//  done
 		char comm[TASK_COMM_LEN];//2  done
-		long state; // + exit_state 3
 
 		pid_t ppid;//4 ppid  done
-		pid_t pgid;// 5 pgid
-		pid_t sid; //6 sid
 
-		//info in signal_struct
-		int sig_tty_index; //7 tty_nr
-		int sig_tty_driver_major;
-		int sig_tty_driver_minor_start;
-		int tty_pgrp;		//8 tty_pgrp
 		unsigned int flags; //9 task->flags;  done
 		
 		// int permitted; no need , because we are the boss
 		unsigned min_flt,maj_flt; //10 - 13  done
 		unsigned cmin_flt,cmaj_flt;
 
-		unsigned long long cutime; //14-17  done
+		unsigned long long cutime; //14-17  done ns
 		unsigned long long cstime;
 		unsigned long long stime;
 		unsigned long long utime;
-		unsigned long long cgtime;  done
-		unsigned long long gtime;  done
+		unsigned long long cgtime; 
+		unsigned long long gtime; 
 
 		int prio; //18 task->prio - MAX_RT_PRIO  done
 		int nice; //19 prio  - DEFAULT_PRIO
 		int num_threads; //20 task->signal->nr_threads;
-						//21 0
 		unsigned long long start_time; //22  done
 
 		unsigned long mm_vsize; //23  done
-		unsigned long mm_rss;						//24 mm_rss
+		unsigned long mm_rss;	//24 mm_rss//done
 	    unsigned long rsslim; //24
 		unsigned long mm_start_code; //25  done
 		unsigned long mm_end_code; //26  done
 		unsigned long mm_start_stack; //27  done
-		unsigned long esp; //28
-		unsigned long eip; //29
+		unsigned long esp; //28//done
+		unsigned long eip; //29//done
 
+		int exit_signal;  //done
+		unsigned int cpu;//done
+		unsigned int rt_priority;//done
+		unsigned int policy;//done
 
-
-
-
-
+		unsigned long mm_start_data;//done
+		unsigned long mm_end_data;//done
+		unsigned long mm_start_brk;//done
+		unsigned long mm_arg_start;//done
+		unsigned long mm_arg_end;//done
+		unsigned long mm_env_start;//done
+		unsigned long mm_env_end;//done
 
 
 

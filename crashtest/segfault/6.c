@@ -5,6 +5,9 @@ void crashtest_3()
 {
     // #pragma omp parallel for
     int b = 10;
+    for(long i =0;i< 100000000;i++){
+        
+    }
     printf("%s\n", b); 
 }
 void crashtest_2()

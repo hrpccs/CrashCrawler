@@ -42,28 +42,19 @@ static char *simple_dname(const struct dentry *dentry, char *buffer, int buflen)
 	return buffer + buflen + 1;
 }
 
-static pid_t pid_nr_ns(struct pid * pid, struct pid_namespace* ns){
-	struct upid *upid;
-	pid_t nr = 0;
-	int nslevel = BPF_CORE_READ(ns, level);
-	int pidlevel = BPF_CORE_READ(pid, level);
-	const struct upid * upidptr = BPF_CORE_READ(pid, numbers) + nslevel;
-	struct pid_namesapce* upidns = BPF_CORE_READ(upidptr,ns);	
-
-	if (pid && nslevel <= pidlevel && upidns == ns) {
-			nr = upid->nr;
-	}
-	return nr;
-}
-
 static unsigned long get_rsslim(struct signal_struct* sig){
-	struct rlimit* rlimptr = BPF_READ_CORE(sig, rlim);
-	return BPF_READ_CORE(rlimptr + RLIMIT_RSS, rlim_cur);
+	struct rlimit rlim[16];
+	bpf_probe_read_kernel_str((void*)rlim,sizeof(rlim),(void*)(&(sig->rlim)));
+	return rlim[RLIMIT_RSS].rlim_cur; 
+
 }
 
 
-static unsigned long get_mm_count(struct mm_struct* mm){
-	
+static unsigned long get_mm_rss(struct mm_struct* mm){
+	struct mm_rss_stat rss_stat =  BPF_CORE_READ(mm,rss_stat);
+	return rss_stat.count[0].counter +
+			rss_stat.count[1].counter +
+			rss_stat.count[3].counter;
 }
 
 // the path in the debugfs, and debugfs need to be mounted
@@ -121,15 +112,28 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 		e->cmaj_flt = BPF_CORE_READ(task, signal, cmin_flt);
 		e->cmin_flt = BPF_CORE_READ(task, signal, cmaj_flt);
 
-		e->mm_vsize = PAGE_SIZE * BPF_CORE_READ(mm,total_vm);
+		e->mm_vsize =  BPF_CORE_READ(mm,total_vm);
+		e->mm_rss = get_mm_rss(mm);
 		e->rsslim = get_rsslim(BPF_CORE_READ(task, signal));
 		e->mm_start_code = BPF_CORE_READ(mm, start_code);
 		e->mm_end_code = BPF_CORE_READ(mm, end_code);
 		e->mm_start_stack = BPF_CORE_READ(mm, start_stack);
-		e->mm_rss = get_mm_rss(mm);
 		
+		e->exit_signal = BPF_CORE_READ(task, exit_signal);
+		e->cpu = BPF_CORE_READ(task, cpu);
+		e->rt_priority = BPF_CORE_READ(task, rt_priority);
+		e->policy = BPF_CORE_READ(task, policy);
 
-		
+		e->esp = BPF_CORE_READ(ctx, sp);
+		e->eip = BPF_CORE_READ(ctx, ip);
+
+		e->mm_start_data = BPF_CORE_READ(mm, start_data);
+		e->mm_end_data = BPF_CORE_READ(mm, end_data);
+		e->mm_start_brk = BPF_CORE_READ(mm, start_brk);
+		e->mm_arg_start = BPF_CORE_READ(mm, arg_start);
+		e->mm_arg_end = BPF_CORE_READ(mm, arg_end);
+		e->mm_env_start = BPF_CORE_READ(mm, env_start);
+		e->mm_env_end = BPF_CORE_READ(mm, env_end);
 		//get file mapping 
 
 		int count = 0;
