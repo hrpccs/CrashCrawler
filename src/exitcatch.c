@@ -150,6 +150,7 @@ static int userstackNameSearch(unsigned long virtualAddr, const char* filePath, 
     FILE *fp;
     unsigned long offset = 0, physicalAddr = 0, flag = 1, stackAddr = 0;
     char cmd[NAMELIMIT];
+	int foundSymbols = 0;
     memset(stackFunctionName, 0, sizeof(stackFunctionName));
     /*
         Reading offset
@@ -161,19 +162,20 @@ static int userstackNameSearch(unsigned long virtualAddr, const char* filePath, 
     fscanf(fp, "%lx", &offset);
     // printf("0x%lx\n", offset);
     physicalAddr = virtualAddr + offset;
-    printf("0x%lx\n", physicalAddr);
+    // printf("0x%lx\n", physicalAddr);
     pclose(fp);
     /*
         Reading function symbols
     */
     memset(cmd, 0, sizeof(cmd));
     sprintf(cmd, "nm -n -D -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
-    printf("%s\n", cmd);
+    // printf("%s\n", cmd);
     fp = popen(cmd, "r");
     char tmpName[NAMELIMIT] = {0};
     while (fscanf(fp, "%lx", &stackAddr) == 1)
     {
         // fscanf(fp, "%lx", &stackAddr);
+		foundSymbols = 1;
         if(physicalAddr < stackAddr)
         {
             flag = 0;
@@ -190,14 +192,20 @@ static int userstackNameSearch(unsigned long virtualAddr, const char* filePath, 
         sprintf(stackFunctionName,"%s+0x%lx",tmpName,offset);
         return flag;
     }
+	if (foundSymbols)
+	{
+		sprintf(stackFunctionName,"[No Function Name]");
+		return flag;
+	}
     // Looking for the stack in the dynamic Libs
     memset(cmd, 0, sizeof(cmd));
     sprintf(cmd, "nm -n -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
-    printf("%s\n", cmd);
+    // printf("%s\n", cmd);
     fp = popen(cmd, "r");
     while (fscanf(fp, "%lx", &stackAddr) == 1)
     {
         // fscanf(fp, "%lx", &stackAddr);
+		// printf(YELLOW"Hello\n"NONE);
         if(physicalAddr < stackAddr)
         {
             flag = 0;
@@ -209,6 +217,7 @@ static int userstackNameSearch(unsigned long virtualAddr, const char* filePath, 
         //     break;
         // printf("%016x %s\n", stackAddr, tmpName);
     }
+	// printf(YELLOW"Hello\n"NONE);
     if(!flag)
         sprintf(stackFunctionName,"%s+0x%lx",tmpName,offset);
     else
