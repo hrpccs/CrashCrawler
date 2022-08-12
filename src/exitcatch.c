@@ -244,9 +244,9 @@ static void sig_handler(int sig)
 
 static void printf_info(struct event* e){
 	//time
-	const long ns2s = 1000000000;
-	printf("user mode time: %10.2lfs\n",(double)(e->utime) / ns2s);
-	printf("system mode time: %10.2lfs\n",(double)(e->stime) / ns2s);
+	const long ns2us = 1000;
+	printf("user mode time: %20ldus\n",e->utime  / ns2us);
+	printf("system mode time: %20ldus\n",e->stime / ns2us);
 	printf("task schedule priority: %ld\n", e->prio - MAX_RT_PRIO);
 	printf("task schedule nice: %ld\n", e->prio - DEFAULT_PRIO);
 	printf("number of thread : %ld\n", e->num_threads);
