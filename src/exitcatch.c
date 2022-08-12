@@ -102,7 +102,6 @@ static void initializeSym()
 				symList.nodeArray[symList.length].name[i - 19] = line[i];
 			}
 		}
-		// printf("%#lx %c %s\n", symList.nodeArray[symList.length].address,symList.nodeArray[symList.length].flag,symList.nodeArray[symList.length].name);
 		++symList.length;
 	}
 }
@@ -157,24 +156,19 @@ static int userstackNameSearch(unsigned long virtualAddr, const char* filePath, 
     */
     memset(cmd, 0, sizeof(cmd));
     sprintf(cmd, "readelf -l %s | awk '$4==\"E\"{print x};{x=$2}'", filePath);
-    // printf("%s\n", cmd);
     fp = popen(cmd, "r");
     fscanf(fp, "%lx", &offset);
-    // printf("0x%lx\n", offset);
     physicalAddr = virtualAddr + offset;
-    // printf("0x%lx\n", physicalAddr);
     pclose(fp);
     /*
         Reading function symbols
     */
     memset(cmd, 0, sizeof(cmd));
     sprintf(cmd, "nm -n -D -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
-    // printf("%s\n", cmd);
     fp = popen(cmd, "r");
     char tmpName[NAMELIMIT] = {0};
     while (fscanf(fp, "%lx", &stackAddr) == 1)
     {
-        // fscanf(fp, "%lx", &stackAddr);
 		foundSymbols = 1;
         if(physicalAddr < stackAddr)
         {
@@ -183,9 +177,6 @@ static int userstackNameSearch(unsigned long virtualAddr, const char* filePath, 
         }
         fscanf(fp, "%s", tmpName);
         offset = physicalAddr - stackAddr;
-        // if(!tmpName[0])
-        //     break;
-        // printf("%016x %s\n", stackAddr, tmpName);
     }
     if(!flag)
     {
@@ -200,12 +191,9 @@ static int userstackNameSearch(unsigned long virtualAddr, const char* filePath, 
     // Looking for the stack in the dynamic Libs
     memset(cmd, 0, sizeof(cmd));
     sprintf(cmd, "nm -n -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
-    // printf("%s\n", cmd);
     fp = popen(cmd, "r");
     while (fscanf(fp, "%lx", &stackAddr) == 1)
     {
-        // fscanf(fp, "%lx", &stackAddr);
-		// printf(YELLOW"Hello\n"NONE);
         if(physicalAddr < stackAddr)
         {
             flag = 0;
@@ -213,11 +201,7 @@ static int userstackNameSearch(unsigned long virtualAddr, const char* filePath, 
         }
         fscanf(fp, "%s", tmpName);
         offset = physicalAddr - stackAddr;
-        // if(!tmpName[0])
-        //     break;
-        // printf("%016x %s\n", stackAddr, tmpName);
     }
-	// printf(YELLOW"Hello\n"NONE);
     if(!flag)
         sprintf(stackFunctionName,"%s+0x%lx",tmpName,offset);
     else
@@ -278,7 +262,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	strcat(filename, "_");
 	strcat(filename, ts);
 	strcat(filename, ".log");
-	printf("%s\n", filename);
+	printf(YELLOW"\n		%s\n"NONE, filename);
 	chdir(logpath);
 	FILE *fp = fopen(filename, "w");
 	int ret = bpf_map__lookup_elem(
@@ -384,8 +368,8 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		// fprintf(fp, "    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
 		// printf("    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
 		// printf("    %#lx\n", stack);
-		fprintf(fp, "    %#lx %s\n", stack, stackFunctionName);
-		printf("    %#lx %s\n", stack, stackFunctionName);
+		fprintf(fp, "    0x%016lx %s\n", stack, stackFunctionName);
+		printf("    0x%016lx %s\n", stack, stackFunctionName);
 	}
 
 
@@ -394,7 +378,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	for (int i = 0; i < e->count; i++)
 	{
 		curr = &(e->mmap[i]);
-		fprintf(fp, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
+		fprintf(fp, "0x%08lx-0x%08lx %c%c%c%c %08llx %02x:%02x %lu ",
 				curr->start,
 				curr->end,
 				curr->flags & VM_READ ? 'r' : '-',
@@ -403,7 +387,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 				curr->flags & VM_MAYSHARE ? 's' : 'p',
 				curr->pgoff,
 				MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
-		printf("%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
+		printf("0x%08lx-0x%08lx %c%c%c%c %08llx %02x:%02x %lu ",
 			   curr->start,
 			   curr->end,
 			   curr->flags & VM_READ ? 'r' : '-',
