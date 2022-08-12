@@ -21,6 +21,10 @@ pushd $SEGFAULT_PATH
         $CC $SRC -o $BIN
         ./$BIN
     done
+    for slp in {1..10000}
+    do
+        SLP=1
+    done
     rm -rf *.bin
 popd
 # push
