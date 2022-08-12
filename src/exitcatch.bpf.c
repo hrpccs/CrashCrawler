@@ -90,31 +90,32 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 				if (!file)
 				{
 					vma = BPF_CORE_READ(vma, vm_next);
+					vma = BPF_CORE_READ(vma, vm_next);
 					continue;
 				}
-				e->mmap[count].dev = BPF_CORE_READ(vma, vm_file, f_inode, i_sb, s_dev);
-				e->mmap[count].ino = BPF_CORE_READ(vma, vm_file, f_inode, i_ino);
-				temp = BPF_CORE_READ(vma, vm_pgoff);
-				e->mmap[count].pgoff = temp << PAGE_SHIFT;
+					e->mmap[count].dev = BPF_CORE_READ(vma, vm_file, f_inode, i_sb, s_dev);
+					e->mmap[count].ino = BPF_CORE_READ(vma, vm_file, f_inode, i_ino);
+					temp = BPF_CORE_READ(vma, vm_pgoff);
+					e->mmap[count].pgoff = temp << PAGE_SHIFT;
 
-				e->mmap[count].start = BPF_CORE_READ(vma, vm_start);
-				e->mmap[count].end = BPF_CORE_READ(vma, vm_end);
-				e->mmap[count].flags = BPF_CORE_READ(vma, vm_flags);
-				filepath = BPF_CORE_READ(file, f_path);
-				struct dentry *dentry = filepath.dentry;
-				struct qstr dname = BPF_CORE_READ(dentry, d_name);
+					e->mmap[count].start = BPF_CORE_READ(vma, vm_start);
+					e->mmap[count].end = BPF_CORE_READ(vma, vm_end);
+					e->mmap[count].flags = BPF_CORE_READ(vma, vm_flags);
+					filepath = BPF_CORE_READ(file, f_path);
+					struct dentry *dentry = filepath.dentry;
+					struct qstr dname = BPF_CORE_READ(dentry, d_name);
 
-				//read abs path of share lib
-				// MAXLEN_VMA_NAME = 2^n;
-				for (int i = MAX_LEVEL - 1; i >= 0; i--)
-				{
-					bpf_probe_read_kernel_str(&(e->mmap[count].name[i][0]), (dname.len + 5) & (MAXLEN_VMA_NAME - 1), dname.name - 4); // weak ptr offset
-					dentry = BPF_CORE_READ(dentry, d_parent);
-					dname = BPF_CORE_READ(dentry, d_name);
-				}
-				count++;
+					//read abs path of share lib
+					// MAXLEN_VMA_NAME = 2^n;
+					for (int k = MAX_LEVEL - 1; k >= 0; k--)
+					{
+						bpf_probe_read_kernel_str(&(e->mmap[count].name[k][0]), (dname.len + 5) & (MAXLEN_VMA_NAME - 1), dname.name - 4); // weak ptr offset
+						dentry = BPF_CORE_READ(dentry, d_parent);
+						dname = BPF_CORE_READ(dentry, d_name);
+					}
+					count++;
+					vma = BPF_CORE_READ(vma, vm_next);
 			}
-			vma = BPF_CORE_READ(vma, vm_next);
 		}
 		e->count = count;
 		bpf_ringbuf_submit(e, 0);
