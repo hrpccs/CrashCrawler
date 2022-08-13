@@ -256,8 +256,8 @@ static void printf_info(struct event *e)
 
 	printf("Virtual Memory info:\n");
 	printf("");
-	printf("\t\t%-13s%-13s%-20s\n", "Main Process", "Subprocess", "Subprocess(On vCPU)");
-	printf("%-16s%-13lu%-13lu%-20lu\n", "User Mode(us)", e->utime / ns2us, e->cutime / ns2us, e->gtime / ns2us);
+	// printf("\t\t%-13s%-13s%-20s\n", "Main Process", "Subprocess", "Subprocess(On vCPU)");
+	// printf("%-16s%-13lu%-13lu%-20lu\n", "User Mode(us)", e->utime / ns2us, e->cutime / ns2us, e->gtime / ns2us);
 	// printf("%-16s%-13ld%-13ld%-20ld\n", "System Mode(us)", e->stime / ns2us, e->cstime / ns2us, e->cgtime / ns2us);
 	printf("cutime:%luus\n", e->cutime / ns2us); //14-17  done ns
 	printf("cstime:%luus\n", e->cstime / ns2us);
@@ -418,6 +418,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			break;
 		}
 		int index = searchUserFile(stack, files, file_count);
+		printf("   ");
 		int searchResult = userstackNameSearch(stack - files[index].segment_start, (const char *)files[index].exec_file_path, stackFunctionName);
 		fprintf(fp, "    0x%016lx %s\n", stack, stackFunctionName);
 		printf("    0x%016lx %s\n", stack, stackFunctionName);
