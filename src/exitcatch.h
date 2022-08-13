@@ -9,7 +9,8 @@
 
 
 // should get from kernel header ?
-#define MAX_VMA_ENTRY 35
+// #define MAX_VMA_ENTRY 51
+#define MAX_VMA_ENTRY 50
 #define MAXLEN_VMA_NAME 64
 #define MAX_LEVEL 8
 #define PAGE_SHIFT 12 //8KB differs from kernels

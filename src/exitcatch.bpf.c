@@ -147,7 +147,7 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 #pragma unroll
 		for (int i = 0; i < MAX_VMA_ENTRY; i++)
 		{
-			if (vma)
+			// if (vma)
 			{
 				file = BPF_CORE_READ(vma, vm_file);
 				if (!file)
@@ -177,6 +177,12 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 						dname = BPF_CORE_READ(dentry, d_name);
 					}
 					count++;
+					if(BPF_CORE_READ(vma,vm_flags) & VM_EXEC){
+						// vma = BPF_CORE_READ(vma, vm_next, vm_next, vm_next);
+						vma = BPF_CORE_READ(vma, vm_next);
+						vma = BPF_CORE_READ(vma, vm_next);
+						vma = BPF_CORE_READ(vma, vm_next);
+					}
 					vma = BPF_CORE_READ(vma, vm_next);
 			}
 		}
