@@ -44,7 +44,8 @@ typedef struct
 	int length;
 } symbolList;
 
-struct RelaventFile {
+struct RelaventFile
+{
 	char exec_file_path[MAX_LEVEL * MAXLEN_VMA_NAME + MAX_LEVEL];
 	unsigned long segment_start;
 	unsigned long segment_end;
@@ -77,7 +78,6 @@ static void initializeSym()
 		int mod = 0;
 		for (int i = 0; i < readLength; i++)
 		{
-			// printf("%c",line[i]);
 			if (line[i] == '\t' || line[i] == '\n')
 				break;
 			if (line[i] == ' ')
@@ -119,7 +119,7 @@ static int searchKernelSymbol(unsigned long query)
 	left = left > 0 ? --left : left;
 	return left;
 }
-static int searchUserFile(unsigned long query, struct RelaventFile* files, int fileCount)
+static int searchUserFile(unsigned long query, struct RelaventFile *files, int fileCount)
 {
 	int left = 0, right = fileCount - 1;
 	while (left < right)
@@ -133,80 +133,80 @@ static int searchUserFile(unsigned long query, struct RelaventFile* files, int f
 	left = left > 0 ? --left : left;
 	return left;
 }
-static int userstackNameSearch(unsigned long virtualAddr, const char* filePath, char* stackFunctionName)
+static int userstackNameSearch(unsigned long virtualAddr, const char *filePath, char *stackFunctionName)
 {
-    /*
-        userstackNameSearch is used to search for the symbol name of a specific
-        virtual address in user stack.
-        input:
-            virtualAddr: specific address of memory;
-            filePath: binary Path of the specific tmpAddr;
-            stackFunctionName: the return name of a stack;
-        output: return a int indicate whether is a successful search;
-            0: successful search;
-            1: failed;
-    */
-    FILE *fp;
-    unsigned long offset = 0, physicalAddr = 0, flag = 1, stackAddr = 0;
-    char cmd[NAMELIMIT];
+	/*
+		userstackNameSearch is used to search for the symbol name of a specific
+		virtual address in user stack.
+		input:
+			virtualAddr: specific address of memory;
+			filePath: binary Path of the specific tmpAddr;
+			stackFunctionName: the return name of a stack;
+		output: return a int indicate whether is a successful search;
+			0: successful search;
+			1: failed;
+	*/
+	FILE *fp;
+	unsigned long offset = 0, physicalAddr = 0, flag = 1, stackAddr = 0;
+	char cmd[NAMELIMIT];
 	int foundSymbols = 0;
-    memset(stackFunctionName, 0, sizeof(stackFunctionName));
-    /*
-        Reading offset
-    */
-    memset(cmd, 0, sizeof(cmd));
-    sprintf(cmd, "readelf -l %s | awk '$4==\"E\"{print x};{x=$2}'", filePath);
-    fp = popen(cmd, "r");
-    fscanf(fp, "%lx", &offset);
-    physicalAddr = virtualAddr + offset;
-    pclose(fp);
-    /*
-        Reading function symbols
-    */
-    memset(cmd, 0, sizeof(cmd));
-    sprintf(cmd, "nm -n -D -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
-    fp = popen(cmd, "r");
-    char tmpName[NAMELIMIT] = {0};
-    while (fscanf(fp, "%lx", &stackAddr) == 1)
-    {
-		foundSymbols = 1;
-        if(physicalAddr < stackAddr)
-        {
-            flag = 0;
-            break;
-        }
-        fscanf(fp, "%s", tmpName);
-        offset = physicalAddr - stackAddr;
-    }
-    if(!flag)
-    {
-        sprintf(stackFunctionName,"%s+0x%lx",tmpName,offset);
-        return flag;
-    }
-	if (foundSymbols)
+	memset(stackFunctionName, 0, sizeof(stackFunctionName));
+	/*
+		Reading offset
+	*/
+	memset(cmd, 0, sizeof(cmd));
+	sprintf(cmd, "readelf -l %s | awk '$4==\"E\"{print x};{x=$2}'", filePath);
+	fp = popen(cmd, "r");
+	fscanf(fp, "%lx", &offset);
+	physicalAddr = virtualAddr + offset;
+	pclose(fp);
+	/*
+		Reading function symbols
+	*/
+	memset(cmd, 0, sizeof(cmd));
+	sprintf(cmd, "nm -n -D -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
+	fp = popen(cmd, "r");
+	char tmpName[NAMELIMIT] = {0};
+	while (fscanf(fp, "%lx", &stackAddr) == 1)
 	{
-		sprintf(stackFunctionName,"[No Function Name]");
+		foundSymbols = 1;
+		if (physicalAddr < stackAddr)
+		{
+			flag = 0;
+			break;
+		}
+		fscanf(fp, "%s", tmpName);
+		offset = physicalAddr - stackAddr;
+	}
+	if (!flag)
+	{
+		sprintf(stackFunctionName, "%s+0x%lx", tmpName, offset);
 		return flag;
 	}
-    // Looking for the stack in the dynamic Libs
-    memset(cmd, 0, sizeof(cmd));
-    sprintf(cmd, "nm -n -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
-    fp = popen(cmd, "r");
-    while (fscanf(fp, "%lx", &stackAddr) == 1)
-    {
-        if(physicalAddr < stackAddr)
-        {
-            flag = 0;
-            break;
-        }
-        fscanf(fp, "%s", tmpName);
-        offset = physicalAddr - stackAddr;
-    }
-    if(!flag)
-        sprintf(stackFunctionName,"%s+0x%lx",tmpName,offset);
-    else
-        sprintf(stackFunctionName,"[No Function Name]");
-    return flag;
+	if (foundSymbols)
+	{
+		sprintf(stackFunctionName, "[No Function Name]");
+		return flag;
+	}
+	// Looking for the stack in the dynamic Libs
+	memset(cmd, 0, sizeof(cmd));
+	sprintf(cmd, "nm -n -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
+	fp = popen(cmd, "r");
+	while (fscanf(fp, "%lx", &stackAddr) == 1)
+	{
+		if (physicalAddr < stackAddr)
+		{
+			flag = 0;
+			break;
+		}
+		fscanf(fp, "%s", tmpName);
+		offset = physicalAddr - stackAddr;
+	}
+	if (!flag)
+		sprintf(stackFunctionName, "%s+0x%lx", tmpName, offset);
+	else
+		sprintf(stackFunctionName, "[No Function Name]");
+	return flag;
 }
 static void initializeSysInfo()
 {
@@ -242,27 +242,62 @@ static void sig_handler(int sig)
 	exiting = true;
 }
 
-static void printf_info(struct event* e){
-	//time
+static void printf_info(struct event *e)
+{
+	// time
 	const long ns2us = 1000;
-	printf("user mode time: %20ldus\n",e->utime  / ns2us);
-	printf("system mode time: %20ldus\n",e->stime / ns2us);
+	printf(BLUE "=====================Process's Brief Report===========================\n" NONE);
+	printf(YELLOW "---------------------------Time Report--------------------------------\n" NONE);
+	printf("User Mode Time: %ldus\n", e->utime / ns2us);
+	printf("System Mode Time: %ldus\n", e->stime / ns2us);
 	printf("task schedule priority: %ld\n", e->prio - MAX_RT_PRIO);
 	printf("task schedule nice: %ld\n", e->prio - DEFAULT_PRIO);
 	printf("number of thread : %ld\n", e->num_threads);
 
-
 	printf("Virtual Memory info:\n");
 	printf("");
+	printf("\t\t%-13s%-13s%-20s\n", "Main Process", "Subprocess", "Subprocess(On vCPU)");
+	printf("%-16s%-13lu%-13lu%-20lu\n", "User Mode(us)", e->utime / ns2us, e->cutime / ns2us, e->gtime / ns2us);
+	// printf("%-16s%-13ld%-13ld%-20ld\n", "System Mode(us)", e->stime / ns2us, e->cstime / ns2us, e->cgtime / ns2us);
+	printf("cutime:%luus\n", e->cutime / ns2us); //14-17  done ns
+	printf("cstime:%luus\n", e->cstime / ns2us);
+	// printf("stime:%luus\n", e->stime / ns2us);
+	// printf("utime:%luus\n", e->utime / ns2us);
+	// printf("cgtime:%luus\n", e->cgtime / ns2us);
+	// printf("gtime:%luus\n", e->gtime / ns2us);
 
+	// printf("prio:%d\n", e->prio); //18 task->prio - MAX_RT_PRIO  done
+	// printf("nice:%d\n", e->nice); //19 prio  - DEFAULT_PRIO
+	// printf("num_threads:%d\n", e->num_threads); //20 task->signal->nr_threads;
+	// //unsigned long long start_time; //22  done
 
+	// printf("mm_vsize:%lu\n",e->mm_vsize); //23  done
+	// printf("mm_rss:%lu\n",e->mm_rss);	//24 mm_rss//done
+	// printf("rsslim:%lu\n",e->rsslim); //24
+	// printf("mm_start_code:%lu\n",e->mm_start_code); //25  done
+	// printf("mm_end_code:%lu\n",e->mm_end_code); //26  done
+	// printf("mm_start_stack:%lu\n",e->mm_start_stack); //27  done
+	// // printf("esp:%lu\n",e->esp); //28//done
+	// // printf("eip:%lu\n",e->eip); //29//done
 
+	// printf("exit_signal:%d\n", e->exit_signal);  //done
+	// printf("cpu: %n",e->cpu);//done
+	// printf("rt_priority: %n",e->rt_priority);//done
+	// printf("policy: %n",e->policy);//done
+
+	// printf("mm_start_data:%lu\n",e->mm_start_data);//done
+	// printf("mm_end_data:%lu\n",e->mm_end_data);//done
+	// printf("mm_start_brk:%lu\n",e->mm_start_brk);//done
+	// printf("mm_arg_start:%lu\n",e->mm_arg_start);//done
+	// printf("mm_arg_end:%lu\n",e->mm_arg_end);//done
+	// printf("mm_env_start:%lu\n",e->mm_env_start);//done
+	// printf("mm_env_end:%lu\n",e->mm_env_end);//done
 }
 
 static int handle_event(void *ctx, void *data, size_t data_sz)
 {
-	struct RelaventFile* files;
-	int file_count=0;
+	struct RelaventFile *files;
+	int file_count = 0;
 	const struct event *e = data;
 	struct tm *tm;
 	char ts[64];
@@ -279,7 +314,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	strcat(filename, "_");
 	strcat(filename, ts);
 	strcat(filename, ".log");
-	printf(YELLOW"\n		%s\n"NONE, filename);
+	printf(YELLOW "\n			  %s\n" NONE, filename);
 	chdir(logpath);
 	FILE *fp = fopen(filename, "w");
 	int ret = bpf_map__lookup_elem(
@@ -303,7 +338,10 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	printf(HEAD "%-14s %-16s %-7s %-7s %-7s %-9s %s" NONE "\n",
 		   "TIME", "COMM", "TID", "PID", "PPID", "EXIT CODE", "SIGNALS");
 	printf(LIGHT_GREEN "%-14s" YELLOW " %-16s" NONE " %-7d %-7d %-7d" RED " %-9d %d\n" NONE,
-		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);	
+		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
+	// Print brief report to the process
+	printf_info(e);
+	// Trace and dependencies
 	printf(YELLOW "Kernel Stack Trace:\n" NONE);
 	for (int i = 0; i < MAX_STACK_DEPTH; i++)
 	{
@@ -315,11 +353,9 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		int index = searchKernelSymbol(stack);
 		fprintf(fp, "    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
 		printf("    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
-		// printf("    %#lx\n", stack);
 	}
-	// printf("%lx\n",e->count);
 
-	//Get and print User stacktrace
+	// Get and print User stacktrace
 	ret = bpf_map__lookup_elem(
 		skel->maps.map_user_stack_traces,
 		&e->user_stack_id,
@@ -337,35 +373,37 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	const struct mmap_struct *curr;
 	// get relavent files count
 	int last_inode = -1;
-	for (int i = 0; i < e->count;i++){
+	for (int i = 0; i < e->count; i++)
+	{
 		curr = &(e->mmap[i]);
-		if((curr->flags & VM_EXEC) && curr->ino != last_inode){
-			last_inode = curr->ino;	
+		if ((curr->flags & VM_EXEC) && curr->ino != last_inode)
+		{
+			last_inode = curr->ino;
 			file_count++;
 		}
 	}
 
-	// printf("files count :%d\n",file_count);
-
-	files = (struct RelaventFile*)malloc(sizeof(struct RelaventFile) * file_count);
+	files = (struct RelaventFile *)malloc(sizeof(struct RelaventFile) * file_count);
 
 	last_inode = -1;
-	for (int i = 0,j = 0; i < e->count;i++){
+	for (int i = 0, j = 0; i < e->count; i++)
+	{
 		curr = &(e->mmap[i]);
-		if((curr->flags & VM_EXEC) && curr->ino != last_inode){
+		if ((curr->flags & VM_EXEC) && curr->ino != last_inode)
+		{
 			files[j].segment_end = curr->end;
 			files[j].segment_start = curr->start;
 			int index = 0;
-			for(int level = 0;level < MAX_LEVEL;level++){
+			for (int level = 0; level < MAX_LEVEL; level++)
+			{
 				if (curr->name[level][0] == '\0' || curr->name[level][0] == '/')
 				{
 					continue;
 				}
-				index += sprintf(files[j].exec_file_path + index,"/%s",curr->name[level]);
+				index += sprintf(files[j].exec_file_path + index, "/%s", curr->name[level]);
 			}
 			files[j].exec_file_path[index] = '\0';
-			// printf("%08lx-%08lx path:%s\n",files[j].segment_start,files[j].segment_end,files[j].exec_file_path);
-			last_inode = curr->ino;	
+			last_inode = curr->ino;
 			j++;
 		}
 	}
@@ -379,23 +417,18 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		{
 			break;
 		}
-		printf("%8lx",stack);
-		int index = searchUserFile(stack,files,file_count);
-		int searchResult = userstackNameSearch(stack - files[index].segment_start, (const char*)files[index].exec_file_path, stackFunctionName);
-		// fprintf(fp, "    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
-		// printf("    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
-		// printf("    %#lx\n", stack);
+		int index = searchUserFile(stack, files, file_count);
+		int searchResult = userstackNameSearch(stack - files[index].segment_start, (const char *)files[index].exec_file_path, stackFunctionName);
 		fprintf(fp, "    0x%016lx %s\n", stack, stackFunctionName);
 		printf("    0x%016lx %s\n", stack, stackFunctionName);
 	}
-
 
 	printf(YELLOW "[Dependencies] Dynamic Libs:" NONE "\n");
 	fprintf(fp, "[Dependencies] Dynamic Libs:\n");
 	for (int i = 0; i < e->count; i++)
 	{
 		curr = &(e->mmap[i]);
-		fprintf(fp, "0x%016lx-0x%016lx %c%c%c%c %08llx %02x:%02x %lu ",
+		fprintf(fp, "    0x%016lx-0x%016lx %c%c%c%c %08llx %02x:%02x %lu ",
 				curr->start,
 				curr->end,
 				curr->flags & VM_READ ? 'r' : '-',
@@ -404,7 +437,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 				curr->flags & VM_MAYSHARE ? 's' : 'p',
 				curr->pgoff,
 				MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
-		printf("0x%016lx-0x%016lx %c%c%c%c %08llx %02x:%02x %lu ",
+		printf("    0x%016lx-0x%016lx %c%c%c%c %08llx %02x:%02x %lu ",
 			   curr->start,
 			   curr->end,
 			   curr->flags & VM_READ ? 'r' : '-',
@@ -423,11 +456,9 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			printf("/%s", curr->name[i]);
 		}
 
-		// printf("Hello World");
 		fprintf(fp, "\n");
 		printf("\n");
 	}
-	printf_info(e);
 	fprintf(fp, "\n");
 	fclose(fp);
 	free(files);
@@ -486,18 +517,18 @@ int main(int argc, char **argv)
 	}
 
 	/* Set up ring buffer polling */
-	
+
 	//
 	mkdir(logpath, S_IRWXU);
 	chdir(logpath);
 	//
 	rb = ring_buffer__new(bpf_map__fd(skel->maps.rb), handle_event, NULL, NULL);
-		if (!rb)
-		{
-			err = -1;
-			fprintf(stderr, "Failed to create ring buffer\n");
-			goto cleanup;
-		}
+	if (!rb)
+	{
+		err = -1;
+		fprintf(stderr, "Failed to create ring buffer\n");
+		goto cleanup;
+	}
 	/* Process events */
 
 	while (!exiting)

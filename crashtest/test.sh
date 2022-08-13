@@ -10,6 +10,7 @@ BASE_DIR=`dirname $SCRIPT_PATH`
 SEGFAULT_PATH="$BASE_DIR/segfault"
 
 CC=$(which gcc)
+CFLAGS="-fopenmp"
 # echo $BASE_DIR
 
 pushd $SEGFAULT_PATH
@@ -18,8 +19,12 @@ pushd $SEGFAULT_PATH
     do
         SRC="$cnt.c"
         BIN="$cnt.bin"
-        $CC $SRC -o $BIN
+        $CC $CFLAGS $SRC -o $BIN
         ./$BIN
+    done
+    for slp in {1..10000}
+    do
+        SLP=1
     done
     rm -rf *.bin
 popd
