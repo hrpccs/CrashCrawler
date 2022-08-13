@@ -128,8 +128,11 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 		e->rt_priority = BPF_CORE_READ(task, rt_priority);
 		e->policy = BPF_CORE_READ(task, policy);
 
-		e->esp = BPF_CORE_READ(ctx, sp);
-		e->eip = BPF_CORE_READ(ctx, ip);
+		void* __current_stack_page = BPF_CORE_READ(task, stack);
+		void* __ptr = __current_stack_page + THREAD_SIZE - TOP_OF_KERNEL_STACK_PADDING;
+		struct pt_regs* _tctx = ((struct pt_regs *)__ptr) - 1;
+		e->esp = BPF_CORE_READ(_tctx, sp);
+		e->eip = BPF_CORE_READ(_tctx, ip);
 
 		e->mm_start_data = BPF_CORE_READ(mm, start_data);
 		e->mm_end_data = BPF_CORE_READ(mm, end_data);
