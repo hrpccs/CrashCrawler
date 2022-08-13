@@ -256,21 +256,21 @@ static void printf_info(struct event *e)
 
 	printf("Virtual Memory info:\n");
 	printf("");
-	printf("\t\t%-13s%-13s%-20s\n", "Main Process", "Subprocess", "Subprocess(On vCPU)");
-	printf("%-16s%-13lu%-13lu%-20lu\n", "User Mode(us)", e->utime / ns2us, e->cutime / ns2us, e->gtime / ns2us);
-	// printf("%-16s%-13ld%-13ld%-20ld\n", "System Mode(us)", e->stime / ns2us, e->cstime / ns2us, e->cgtime / ns2us);
-	printf("cutime:%luus\n", e->cutime / ns2us); //14-17  done ns
-	printf("cstime:%luus\n", e->cstime / ns2us);
-	// printf("stime:%luus\n", e->stime / ns2us);
-	// printf("utime:%luus\n", e->utime / ns2us);
-	// printf("cgtime:%luus\n", e->cgtime / ns2us);
-	// printf("gtime:%luus\n", e->gtime / ns2us);
+	printf("\t\t%-15s%-15s%-20s\n", "Main Process", "Subprocess", "Subprocess(On vCPU)");
+	printf("%-16s%-15lu%-15lu%-20lu\n", "User Mode(us)", e->utime / ns2us, e->cutime / ns2us, e->gtime / ns2us);
+	printf("%-16s%-15ld%-15ld%-20ld\n", "System Mode(us)", e->stime / ns2us, e->cstime / ns2us, e->cgtime / ns2us);
 
-	// printf("prio:%d\n", e->prio); //18 task->prio - MAX_RT_PRIO  done
-	// printf("nice:%d\n", e->nice); //19 prio  - DEFAULT_PRIO
-	// printf("num_threads:%d\n", e->num_threads); //20 task->signal->nr_threads;
-	// //unsigned long long start_time; //22  done
+	printf(YELLOW "-------------------------Schedule Report------------------------------\n" NONE);
+	printf("%-30s%d\n","Schedule Priority(Default)", e->prio - DEFAULT_PRIO); //18 task->prio - MAX_RT_PRIO  done
+	printf("%-30s%d\n","Schedule Priority(Realtime)", e->prio - MAX_RT_PRIO); //18 task->prio - MAX_RT_PRIO  done
+	printf("%-30s%d\n","Threads Number", e->num_threads); //18 task->prio - MAX_RT_PRIO  done
 
+	printf("exit_signal:%d\n", e->exit_signal);  //done
+	printf("cpu: %d\n",e->cpu);//done
+	printf("rt_priority: %d\n",e->rt_priority);//done
+	printf("policy: %d\n",e->policy);//done
+
+	printf(YELLOW "--------------------------Memory Report-------------------------------\n" NONE);
 	// printf("mm_vsize:%lu\n",e->mm_vsize); //23  done
 	// printf("mm_rss:%lu\n",e->mm_rss);	//24 mm_rss//done
 	// printf("rsslim:%lu\n",e->rsslim); //24
@@ -279,11 +279,6 @@ static void printf_info(struct event *e)
 	// printf("mm_start_stack:%lu\n",e->mm_start_stack); //27  done
 	// // printf("esp:%lu\n",e->esp); //28//done
 	// // printf("eip:%lu\n",e->eip); //29//done
-
-	// printf("exit_signal:%d\n", e->exit_signal);  //done
-	// printf("cpu: %n",e->cpu);//done
-	// printf("rt_priority: %n",e->rt_priority);//done
-	// printf("policy: %n",e->policy);//done
 
 	// printf("mm_start_data:%lu\n",e->mm_start_data);//done
 	// printf("mm_end_data:%lu\n",e->mm_end_data);//done
@@ -339,8 +334,6 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		   "TIME", "COMM", "TID", "PID", "PPID", "EXIT CODE", "SIGNALS");
 	printf(LIGHT_GREEN "%-14s" YELLOW " %-16s" NONE " %-7d %-7d %-7d" RED " %-9d %d\n" NONE,
 		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
-	// Print brief report to the process
-	printf_info(e);
 	// Trace and dependencies
 	printf(YELLOW "Kernel Stack Trace:\n" NONE);
 	for (int i = 0; i < MAX_STACK_DEPTH; i++)
@@ -461,6 +454,8 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	}
 	fprintf(fp, "\n");
 	fclose(fp);
+	// Print brief report to the process
+	printf_info(e);
 	free(files);
 	return 0;
 }
