@@ -292,6 +292,45 @@ Stack Trace:
 
 ![](../gallery/solve4.png)
 
+4. 无法解析用户函数名：
+    
+    复赛期间，我们希望获取崩溃进程在触发崩溃瞬间的用户态调用栈，通过libbpf提供的`bpf_get_stackid`辅助函数，我们可以容易地获取到用户态调用栈里的64位跳转地址。但是我们必须要得到这些虚拟地址对应的函数名（符号名）才对开发人员有实际意义。
+
+    于是就出现了**该如何解析用户空间虚拟地址获取相应符号名**的问题。一开始我们没有很多头绪，于是我们转而查询一般的程序是如何获取自己的用户态调用栈的。然后我们发现：
+    -   对于基于虚拟机的程序，比如java程序和python程序。由于虚拟机本身为它们记录了和组织了函数调用追踪，所以非常容易就可以获取到某一时刻的函数调用栈。
+    -   对于大多数linux系统程序获取自己的调用栈都是通过一组函数：`backtrace() backtrace_symbols()`还有`addr2line()`,来实现打印用户态的调用栈。
+
+    我们觉得第一种方法也许涉及到jvm或者python的虚拟机的内部机制，难以在linux操作系统提供的接口基础上直接复现，所以我们想能否挖掘glibc提供的通过用户虚拟地址获取相应符号名的函数`backtrace_symbols()`的实现机制，然后通过直接调用或者移植到我们的bpf用户侧程序以达到通过用户虚拟空间的地址获取相应具体函数符号的目的。
+
+    但是我们通过阅读glibc关于[该函数的源码](https://github.com/bminor/glibc/blob/master/debug/backtracesyms.c)发现`backtrace_symbols`的实现需要借助调用该程序本身的elf文件信息。对于**程序自己调用`backtrace_symbols`来获取自身符号信息的情况下**，这种方法是方便的。因为我们在阅读该函数的实现时，发现它需要借助进程内存存储着属于`libld.so`动态库的关于elf链接与加载的数据，来达到解析符号的目的。
+
+    但是，对于我们的崩溃收集组件，在进程崩溃后进程资源已经被释放，我们在用户侧bpf程序是无法获取内存中关于崩溃进程elf加载的信息的。所以我们需要另辟蹊径。
+
+5. eBPF限制了获取内核信息的数量：
+
+    在解析用户函数调用栈对应的用户函数名时，有时候会找不到跳转地址对应的符号，原因就是我们有时候会遇到一些无法完全遍历vm_area_struct链表的情况。
+    
+    ![](../gallery/slove5.jpg)
+
+    经过分析，出现这种情况的原因主要有两点：
+    
+    - 一是循环体内分支多，并且循环次数多，导致`verifier`需要模拟的状态过多，进而加载程序失败。在加载eBPF程序进入内核时，需要经过验证eBPF程序可靠性的`verifier`的检验，它会模拟eBPF的运行，如果循环体中存在分支，那么在循环层数增多的同时，`verifier`需要处理分支过多的时候，它会加载eBPF程序失败。对于这种情况，我们摸索出了一种解决方法，就是减少循环体内的分支判断。简单来说就是，我们正常写用户态程序，在通过指针遍历链表时，需要对指针进行判空处理，否则容易出现`segment fault`。但是在写eBPF内核部分程序时，我们可以改变思路。因为我们不通过直接对指针解引用，而是通过`bpf_helper_function`来间接地读指针指向的内容，它本身就存在了保护机制，所以我们可以减少分支判断，从而`达到增大遍历链表深度的目的`。
+
+    - 二是**eBPF程序的指令数存在一百万条的限制**，在解决了上一个问题后，我们进一步增加了遍历链表的深度，但是由于eBPF本身确实不支持循环，我们需要借助编译器将循环展开，这就导致循环次数越多，eBPF程序的指令数越多。要解决这个限制，存在两种方案：
+        
+        - 最简单的一种是简化循环内逻辑，换句话就是少收集一些信息，只收集关键信息，这样可以把有限的指令数给到更关键的地方，比如增加循环次数。（能用的指令数最多一百万条）
+
+        - 另一种方法就是借助`libbpf`提供的`bpf_tail_call()`辅助函数，它的作用就是保留当前eBPF程序的栈帧，但是跳转到另一个eBPF程序执行（永远不会返回）。它提出的一个目的就是突破eBPF的指令限制。要借助它来突破限制，我们有个方案就是把循环体内的代码拆成相互独立的几部分，然后每部分都单独放到一个eBPF程序里面，这样就可以达到拆分逻辑，从而达到进一步增加可用指令数的，进而增加循环次数的目的。（理论上我们可以用的指令数上限为 循环拆分的模块数 * 一百万，我们戏称这种方法为分布式循环haha）
+
+    经过优化，我们把循环次数从35，增加到51。由于已经可以应付大多数的场景，所以没有继续使用`bpf_tail_call()`来继续增加指令数。
+    理论上讲，因为eBPF程序终究不是图灵完备的，所以在链表长度太长的时候，无论如何都无法完全读取完成。目前的代码已经可以应付大多数情况了，少数动态库数量太多，内存分布太复杂的程序没法完全得到所有动态库信息。
+    
+    ![](../gallery/slove6.jpg)
+
+    ![](../gallery/slove7.jpg)
+
+    
+
 ## 四、创新点
 
 ### 1. eBPF进行内核追踪
@@ -304,11 +343,15 @@ Stack Trace:
 
 - 是**触发式**的，操作系统全局的进程都可以触发，并且能够看到该进程崩溃瞬间所有的信息。我们通过eBPF程序在进程崩溃资源被回收前，在内核态直接读取进程的数据。这时候进程会在我们的eBPF程序结束后才会被回收资源，所以我们得到的信息就是进程崩溃瞬间的信息。这相较于我们在用户态利用**周期扫描式**的执行`ldd,cat /proc/<pid>/maps,strace`等指令，显然在获取进程信息上更便利与准确、也不会发生因为扫描周期不够小，导致无法追踪一些**刚创建就崩溃**的进程、更不会出现周期扫描导致的资源浪费。
 
+- 并且由于是触发式的，所以比coredump更为灵活，因为对于一些启用core dump机制前就创建好的进程，core dump是无法拦截到它的。
+
 ### 2.灵活解决eBPF带来的问题
 
 尽管eBPF程序在代码实现上不太灵活，但是总是有办法通过bpf_helper来实现目的，只不过较为麻烦。但是比如我要通过遍历链表来获取该进程所有的内存映射段的信息和在tracing类eBPF程序里面获取一个文件的绝对路径，尽管我们没有现有的bpf_helper函数来辅助完成。但是我们可以仿照该部分的内核源码，利用eBPF来实现简化逻辑的版本。
 
-这些简化逻辑版本的实现本质上是用**空间换取安全性**，比如遍历链表读取信息需要预留固定个数的固定长度的缓冲区，如果需要保证能够完全读取整个链表，那么预留的空间就要更多。比如遍历进程的虚拟内存映射段的链
+这些简化逻辑版本的实现本质上是用**空间换取安全性**，比如遍历链表读取信息需要预留固定个数的固定长度的缓冲区，如果需要保证能够完全读取整个链表，那么预留的空间就要更多。
+
+并且对于具体问题，我们可以具体分析，然后尝试优化。这在我们遇到的困难和应对方法中有所体现。
 
 ## 五、效果展示
 
@@ -373,6 +416,8 @@ signals=139=128 + 11说明是segmentation fault和触发了core dump
 
 [5]    libbpf 编程示例参考 https://github.com/iovisor/bcc/tree/master/libbpf-tools 
 
+[6]    libbpf_helper_function 文档 https://github.com/iovisor/bpf-docs/blob/master/bpf_helpers.rst/
+
 **数据分析依据**
 
 [1]    Linux man signals (7)
@@ -381,9 +426,15 @@ signals=139=128 + 11说明是segmentation fault和触发了core dump
 
 [3]    进程异常退出分析 https://blog.csdn.net/challenglistic/article/details/123882574
 
+[4]    Linux man proc (5)
+
 **内核代码阅读**
 
-[1]     d_path函数实现 https://code.woboq.org/linux/linux/fs/d_path.c.html#d_path
+[1]     d_path函数实现 [linux/fs/d_path.c](https://code.woboq.org/linux/linux/fs/d_path.c.html#d_path)
 
-[2]    /proc/<pid>/maps 函数实现 [fs/proc/task_mmu.c - kernel/msm - Git at Google](https://android.googlesource.com/kernel/msm/+/android-lego-6.0.1_r0.2/fs/proc/task_mmu.c)
+[2]    /proc/<pid>/maps 函数实现 [fs/proc/task_mmu.c](https://android.googlesource.com/kernel/msm/+/android-lego-6.0.1_r0.2/fs/proc/task_mmu.c)
+
+[3]     /proc/<pid>/stat 函数实现 [linux/fs/proc/array.c](https://code.woboq.org/linux/linux/fs/proc/array.c.html#123tty_pgrp)
+
+[4]    glibc backtrace_symbols 函数实现 [glibc/debug/backtracesyms.c](https://github.com/bminor/glibc/blob/master/debug/backtracesyms.c)
 
