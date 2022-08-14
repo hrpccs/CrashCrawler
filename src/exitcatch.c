@@ -22,7 +22,7 @@
 const char *KALLPATH = "/proc/kallsyms";
 char logpath[MAXLEN_PATH] = "/var/log/crashlog";
 
-char sysinfo_buffer[800];
+char sysinfo_buffer[8000];
 
 typedef struct
 {
@@ -208,12 +208,28 @@ static int userstackNameSearch(unsigned long virtualAddr, const char *filePath, 
 		sprintf(stackFunctionName, "[No Function Name]");
 	return flag;
 }
+
+static void printLogo()
+{
+	FILE *fp;
+	fp = fopen("../src/logo/2.txt", "r");
+	while (1)
+	{
+		memset(sysinfo_buffer, 0, sizeof(sysinfo_buffer));
+		void *ptr = fgets(sysinfo_buffer, sizeof(sysinfo_buffer), fp);
+		if (ptr == NULL)
+			break;
+		printf("%s", sysinfo_buffer);
+	}
+	fclose(fp);
+}
 static void initializeSysInfo()
 {
 	/*
 		硬件信息脚本
 		https://blog.csdn.net/LvJzzZ/article/details/112029991
 	*/
+	printLogo();
 	FILE *fp;
 	fp = popen("bash ../src/hardware.sh", "r");
 	while (1)
@@ -242,7 +258,9 @@ static void sig_handler(int sig)
 	exiting = true;
 }
 
-void memoryCal(unsigned long mem, char * buffer)
+
+
+static void memoryCal(unsigned long mem, char * buffer)
 {
 	/*
 		Calcalate the memory size and return it with correspondent size.
@@ -261,7 +279,7 @@ static void printf_info(struct event *e)
 	printf(YELLOW "Time Report\n" NONE);
 	// printf(YELLOW "-----------------------------Time Report---------------------------------\n" NONE);
 	printf("                    %-17s%-15s%-20s\n", "Current Process", "Subprocess", "Subprocess(On vCPU)");
-	printf("    %-16s%-17lu%-15lu%-20lu\n", "User Mode(us)", e->utime / ns2us, e->cutime / ns2us, e->gtime / ns2us);
+	printf("    %-16s%-17llu%-15llu%-20llu\n", "User Mode(us)", e->utime / ns2us, e->cutime / ns2us, e->gtime / ns2us);
 	printf("    %-16s%-17ld%-15ld%-20ld\n", "System Mode(us)", e->stime / ns2us, e->cstime / ns2us, e->cgtime / ns2us);
 	printf(YELLOW "Schedule Report\n" NONE);
 	// printf(YELLOW "---------------------------Schedule Report-------------------------------\n" NONE);
