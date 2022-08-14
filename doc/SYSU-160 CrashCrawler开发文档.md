@@ -308,7 +308,11 @@ Stack Trace:
 
 5. eBPF限制了获取内核信息的数量：
 
-    在解析用户函数调用栈对应的用户函数名时，有时候会找不到跳转地址对应的符号，原因就是我们有时候会遇到一些无法完全遍历vm_area_struct链表的情况。经过分析，出现这种情况的原因主要有两点：
+    在解析用户函数调用栈对应的用户函数名时，有时候会找不到跳转地址对应的符号，原因就是我们有时候会遇到一些无法完全遍历vm_area_struct链表的情况。
+    
+    ![](../gallery/slove5.jpg)
+
+    经过分析，出现这种情况的原因主要有两点：
     
     - 一是循环体内分支多，并且循环次数多，导致`verifier`需要模拟的状态过多，进而加载程序失败。在加载eBPF程序进入内核时，需要经过验证eBPF程序可靠性的`verifier`的检验，它会模拟eBPF的运行，如果循环体中存在分支，那么在循环层数增多的同时，`verifier`需要处理分支过多的时候，它会加载eBPF程序失败。对于这种情况，我们摸索出了一种解决方法，就是减少循环体内的分支判断。简单来说就是，我们正常写用户态程序，在通过指针遍历链表时，需要对指针进行判空处理，否则容易出现`segment fault`。但是在写eBPF内核部分程序时，我们可以改变思路。因为我们不通过直接对指针解引用，而是通过`bpf_helper_function`来间接地读指针指向的内容，它本身就存在了保护机制，所以我们可以减少分支判断，从而`达到增大遍历链表深度的目的`。
 
@@ -316,10 +320,14 @@ Stack Trace:
         
         - 最简单的一种是简化循环内逻辑，换句话就是少收集一些信息，只收集关键信息，这样可以把有限的指令数给到更关键的地方，比如增加循环次数。（能用的指令数最多一百万条）
 
-        - 另一种方法就是借助`libbpf`提供的`bpf_tail_call()`辅助函数，它的作用就是保留当前eBPF程序的栈帧，但是跳转到另一个eBPF程序执行（永远不会返回）。它提出的一个目的就是突破eBPF的指令限制。要借助它来突破限制，我们有个方案就是把循环体内的代码拆成相互独立的几部分，然后每部分都单独放到一个eBPF程序里面，这样就可以达到拆分逻辑，从而达到进一步增加可用指令数的，进而增加循环次数的目的。（理论上我们可以用的指令数上限为 循环拆分的模块数 * 一百万）
+        - 另一种方法就是借助`libbpf`提供的`bpf_tail_call()`辅助函数，它的作用就是保留当前eBPF程序的栈帧，但是跳转到另一个eBPF程序执行（永远不会返回）。它提出的一个目的就是突破eBPF的指令限制。要借助它来突破限制，我们有个方案就是把循环体内的代码拆成相互独立的几部分，然后每部分都单独放到一个eBPF程序里面，这样就可以达到拆分逻辑，从而达到进一步增加可用指令数的，进而增加循环次数的目的。（理论上我们可以用的指令数上限为 循环拆分的模块数 * 一百万，我们戏称这种方法为分布式循环haha）
 
+    经过优化，我们把循环次数从35，增加到51。由于已经可以应付大多数的场景，所以没有继续使用`bpf_tail_call()`来继续增加指令数。
     理论上讲，因为eBPF程序终究不是图灵完备的，所以在链表长度太长的时候，无论如何都无法完全读取完成。目前的代码已经可以应付大多数情况了，少数动态库数量太多，内存分布太复杂的程序没法完全得到所有动态库信息。
     
+    ![](../gallery/slove6.jpg)
+
+    ![](../gallery/slove7.jpg)
 
     
 
@@ -341,7 +349,9 @@ Stack Trace:
 
 尽管eBPF程序在代码实现上不太灵活，但是总是有办法通过bpf_helper来实现目的，只不过较为麻烦。但是比如我要通过遍历链表来获取该进程所有的内存映射段的信息和在tracing类eBPF程序里面获取一个文件的绝对路径，尽管我们没有现有的bpf_helper函数来辅助完成。但是我们可以仿照该部分的内核源码，利用eBPF来实现简化逻辑的版本。
 
-这些简化逻辑版本的实现本质上是用**空间换取安全性**，比如遍历链表读取信息需要预留固定个数的固定长度的缓冲区，如果需要保证能够完全读取整个链表，那么预留的空间就要更多。比如遍历进程的虚拟内存映射段的链
+这些简化逻辑版本的实现本质上是用**空间换取安全性**，比如遍历链表读取信息需要预留固定个数的固定长度的缓冲区，如果需要保证能够完全读取整个链表，那么预留的空间就要更多。
+
+并且对于具体问题，我们可以具体分析，然后尝试优化。这在我们遇到的困难和应对方法中有所体现。
 
 ## 五、效果展示
 
@@ -406,6 +416,8 @@ signals=139=128 + 11说明是segmentation fault和触发了core dump
 
 [5]    libbpf 编程示例参考 https://github.com/iovisor/bcc/tree/master/libbpf-tools 
 
+[6]    libbpf_helper_function 文档 https://github.com/iovisor/bpf-docs/blob/master/bpf_helpers.rst/
+
 **数据分析依据**
 
 [1]    Linux man signals (7)
@@ -414,9 +426,15 @@ signals=139=128 + 11说明是segmentation fault和触发了core dump
 
 [3]    进程异常退出分析 https://blog.csdn.net/challenglistic/article/details/123882574
 
+[4]    Linux man proc (5)
+
 **内核代码阅读**
 
-[1]     d_path函数实现 https://code.woboq.org/linux/linux/fs/d_path.c.html#d_path
+[1]     d_path函数实现 [linux/fs/d_path.c](https://code.woboq.org/linux/linux/fs/d_path.c.html#d_path)
 
-[2]    /proc/<pid>/maps 函数实现 [fs/proc/task_mmu.c - kernel/msm - Git at Google](https://android.googlesource.com/kernel/msm/+/android-lego-6.0.1_r0.2/fs/proc/task_mmu.c)
+[2]    /proc/<pid>/maps 函数实现 [fs/proc/task_mmu.c](https://android.googlesource.com/kernel/msm/+/android-lego-6.0.1_r0.2/fs/proc/task_mmu.c)
+
+[3]     /proc/<pid>/stat 函数实现 [linux/fs/proc/array.c](https://code.woboq.org/linux/linux/fs/proc/array.c.html#123tty_pgrp)
+
+[4]    glibc backtrace_symbols 函数实现 [glibc/debug/backtracesyms.c](https://github.com/bminor/glibc/blob/master/debug/backtracesyms.c)
 
