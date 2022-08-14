@@ -242,45 +242,55 @@ static void sig_handler(int sig)
 	exiting = true;
 }
 
+void memoryCal(unsigned long mem, char * buffer)
+{
+	/*
+		Calcalate the memory size and return it with correspondent size.
+	*/
+	if(mem < 1024)
+		sprintf(buffer, "%8.2fB",(float) mem);
+	else if(mem < 1024 * 1024)
+		sprintf(buffer, "%8.2fKB",(float) mem / 1024);
+	else
+		sprintf(buffer, "%8.2fMB",(float) mem / (1024 * 1024));
+}
 static void printf_info(struct event *e)
 {
-	// time
 	const long ns2us = 1000;
-	printf(BLUE "=====================Process's Brief Report===========================\n" NONE);
-	printf(YELLOW "---------------------------Time Report--------------------------------\n" NONE);
-	printf("User Mode Time: %ldus\n", e->utime / ns2us);
-	printf("System Mode Time: %ldus\n", e->stime / ns2us);
-	printf("task schedule priority: %ld\n", e->prio - MAX_RT_PRIO);
-	printf("task schedule nice: %ld\n", e->prio - DEFAULT_PRIO);
-	printf("number of thread : %ld\n", e->num_threads);
+	printf(PURPLE"\n========================Process's Brief Report===========================\n" NONE);
+	printf(YELLOW "Time Report\n" NONE);
+	// printf(YELLOW "-----------------------------Time Report---------------------------------\n" NONE);
+	printf("                    %-17s%-15s%-20s\n", "Current Process", "Subprocess", "Subprocess(On vCPU)");
+	printf("    %-16s%-17lu%-15lu%-20lu\n", "User Mode(us)", e->utime / ns2us, e->cutime / ns2us, e->gtime / ns2us);
+	printf("    %-16s%-17ld%-15ld%-20ld\n", "System Mode(us)", e->stime / ns2us, e->cstime / ns2us, e->cgtime / ns2us);
+	printf(YELLOW "Schedule Report\n" NONE);
+	// printf(YELLOW "---------------------------Schedule Report-------------------------------\n" NONE);
+	printf("    %-36s%10d\n","Schedule Priority(Default)", e->prio - DEFAULT_PRIO); //18 task->prio - MAX_RT_PRIO  done
+	printf("    %-36s%10d\n","Schedule Priority(Nice)", e->prio - MAX_RT_PRIO); //18 task->prio - MAX_RT_PRIO  done
+	printf("    %-36s%10d\n","Schedule Priority(Realtime)", e->rt_priority); //18 task->prio - MAX_RT_PRIO  done
+	printf("    %-36s%10d\n","Schedule Policy",e->policy);//done
+	printf("    %-36s%10d\n","Threads Number", e->num_threads); //18 task->prio - MAX_RT_PRIO  done
+	printf("    %-36s%10d\n","CPU Number(Last Executed On)", e->cpu); //18 task->prio - MAX_RT_PRIO  done
+	printf("    %-36s%10d\n","Exit Signal(Report by waitpid())", e->exit_signal); //18 task->prio - MAX_RT_PRIO  done
+	printf(YELLOW "Memory Report\n" NONE);
+	// printf(YELLOW "----------------------------Memory Report--------------------------------\n" NONE);
+	// char buffer[15] = {0};
+	// memoryCal(e->mm_vsize, buffer);
+	// printf("    %-30s%15s\n","Virtual Memory Size", buffer); 
+	printf("    %-36s%10.2f\n","Virtual Memory Size(KB)", (float)e->mm_vsize * PAGE_SIZE / 1024); //18 task->prio - MAX_RT_PRIO  done
+	printf("    %-36s%10.2f\n","Resident Set Size(RSS/KB)", (float)e->mm_rss * PAGE_SIZE / 1024); //18 task->prio - MAX_RT_PRIO  done
+	printf("    %-36s%10.2f\n","Soft Limit Of Rss(KB)", (float)e->rsslim / 1024); //18 task->prio - MAX_RT_PRIO  done
+	printf("    %-36s%10.2f\n","Text Segement Size(KB)", (e->mm_end_code - e->mm_start_code) / 1024); //18 task->prio - MAX_RT_PRIO  done
+	printf("    %-36s%10.2f\n","BSS Segement Size(KB)", (e->mm_end_data - e->mm_start_data) / 1024); //18 task->prio - MAX_RT_PRIO  done
+	printf("    %-36s%10.2f\n","Text Segement Size(KB)", (e->mm_end_code - e->mm_start_code) / 1024); //18 task->prio - MAX_RT_PRIO  done
+	printf(YELLOW"Page Fault Report\n"NONE);
+	printf("                    %-20s%-15s\n", "Current Process", "Subprocess");
+	printf("    %-16s%-20lu%-15lu\n", "Major Faults",e->maj_flt, e->cmaj_flt);
+	printf("    %-16s%-20ld%-15ld\n", "Minor Faults",e->min_flt, e->cmin_flt);
+	// printf("mm_start_stack:%x\n",e->mm_start_stack); //27  done
+	// printf("esp:%lu\n",e->esp); //28//done
+	// printf("eip:%lu\n",e->eip); //29//done
 
-	printf("Virtual Memory info:\n");
-	printf("");
-	printf("\t\t%-15s%-15s%-20s\n", "Main Process", "Subprocess", "Subprocess(On vCPU)");
-	printf("%-16s%-15lu%-15lu%-20lu\n", "User Mode(us)", e->utime / ns2us, e->cutime / ns2us, e->gtime / ns2us);
-	printf("%-16s%-15ld%-15ld%-20ld\n", "System Mode(us)", e->stime / ns2us, e->cstime / ns2us, e->cgtime / ns2us);
-	printf(YELLOW "-------------------------Schedule Report------------------------------\n" NONE);
-	printf("%-30s%d\n","Schedule Priority(Default)", e->prio - DEFAULT_PRIO); //18 task->prio - MAX_RT_PRIO  done
-	printf("%-30s%d\n","Schedule Priority(Realtime)", e->prio - MAX_RT_PRIO); //18 task->prio - MAX_RT_PRIO  done
-	printf("%-30s%d\n","Threads Number", e->num_threads); //18 task->prio - MAX_RT_PRIO  done
-
-	printf("exit_signal:%d\n", e->exit_signal);  //done
-	printf("cpu: %d\n",e->cpu);//done
-	printf("rt_priority: %d\n",e->rt_priority);//done
-	printf("policy: %d\n",e->policy);//done
-
-	printf(YELLOW "--------------------------Memory Report-------------------------------\n" NONE);
-	// printf("mm_vsize:%luBytes\n",e->mm_vsize * PAGE_SIZE); //23  done
-	// printf("mm_rss:%luBytes\n",e->mm_rss * PAGE_SIZE);	//24 mm_rss//done
-	// printf("rsslim:%luBytes\n",e->rsslim); //24
-	// printf("mm_start_code:%lu\n",e->mm_start_code); //25  done
-	// printf("mm_end_code:%lu\n",e->mm_end_code); //26  done
-	// printf("mm_start_stack:%lu\n",e->mm_start_stack); //27  done
-	// // printf("esp:%lu\n",e->esp); //28//done
-	// // printf("eip:%lu\n",e->eip); //29//done
-
-	// printf("mm_start_data:%lu\n",e->mm_start_data);//done
-	// printf("mm_end_data:%lu\n",e->mm_end_data);//done
 	// printf("mm_start_brk:%lu\n",e->mm_start_brk);//done
 	// printf("mm_arg_start:%lu\n",e->mm_arg_start);//done
 	// printf("mm_arg_end:%lu\n",e->mm_arg_end);//done
@@ -336,6 +346,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	// Print brief report to the process
 	printf_info(e);
 	// Trace and dependencies
+	printf(PURPLE"\n====================Stack Trace And Dependencies=========================\n" NONE);
 	printf(YELLOW "Kernel Stack Trace:\n" NONE);
 	for (int i = 0; i < MAX_STACK_DEPTH; i++)
 	{
@@ -412,7 +423,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			break;
 		}
 		int index = searchUserFile(stack, files, file_count);
-		printf("   ");
+		// printf("   ");
 		int searchResult = userstackNameSearch(stack - files[index].segment_start, (const char *)files[index].exec_file_path, stackFunctionName);
 		fprintf(fp, "    0x%016lx %s\n", stack, stackFunctionName);
 		printf("    0x%016lx %s\n", stack, stackFunctionName);
@@ -457,6 +468,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		fprintf(fp, "\n");
 		printf("\n");
 	}
+	printf("\n");
 	fprintf(fp, "\n");
 	fclose(fp);
 	free(files);
