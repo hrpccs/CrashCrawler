@@ -5,14 +5,14 @@
 #include <unistd.h>
 void crashtest_3()
 {
-    // #pragma omp parallel for
+#pragma omp parallel for
     for (int i = 0; i < 4; i++)
     {
         printf("My Tid is % 8d\n", gettid());
         int *ptr = (void *)crashtest_3;
-        for (int i = 0; i < 1000000; i++){
-            getpid();
-        }
+        //for (int i = 0; i < 1000000; i++){
+        //    getpid();
+        //}
         printf("attend to write read only mem %p\n", ptr);
         if(i == 3)
             *ptr = 1000;

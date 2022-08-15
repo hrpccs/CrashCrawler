@@ -27,7 +27,7 @@ char sys_info_buf[8000];
 struct symbol_node
 {
 	/*
-		One node for symbol table
+		One node for kernel symbol table.
 	*/
 	unsigned long int address;
 	char flag;
@@ -38,9 +38,9 @@ struct symbol_node
 struct symbolList
 {
 	/*
-		The whole table
+		The whole table for kernel symbol table.
 	*/
-	symbol_node node_array[LISTLIMT];
+	struct symbol_node node_array[LISTLIMT];
 	int length;
 };
 
@@ -54,20 +54,39 @@ struct symbolList sym_list;
 
 static int char2int(char c)
 {
+	/*
+		char2int is used to convert char to int
+		input:
+			c: char to be convert;
+		output: 
+			return an int
+	*/
 	if (c <= '9' && c >= '0')
 		return c - '0';
 	else
 		return c - 'a' + 10;
 }
+
 static long int get_index(int n)
 {
+	/*
+		get_index is used to do exponent arithmetic.
+		input:
+			n index to calculate;
+		output: 
+			return the result
+	*/
 	long int ans = 1;
 	while (n--)
 		ans *= 16;
 	return ans;
 }
+
 static void sym_initialize()
 {
+	/*
+		sym_initialize is used to initialize the kernel symbol table.
+	*/
 	FILE *fp = fopen(kallysyms_path, "r");
 	char *line = NULL;
 	size_t len = 0;
@@ -105,8 +124,17 @@ static void sym_initialize()
 		++sym_list.length;
 	}
 }
+
 static int search_kernel_symbol(unsigned long query)
 {
+	/*
+		search_kernel_symbol uses binary search to search for
+		kernel stack symbol.
+		input:
+			n index;
+		output: 
+			return the result
+	*/
 	int left = 0, right = sym_list.length;
 	while (left < right)
 	{
@@ -302,7 +330,7 @@ static void print_info(struct event *e, FILE *fp)
 	fprintf(fp, "    %-36s%10.2f\n", "Text Segement Size(KB)", (float)(e->mm_end_code - e->mm_start_code) / 1024); // 18 task->prio - MAX_RT_PRIO  done
 	fprintf(fp, "Page Fault Report\n");
 	fprintf(fp, "                    %-20s%-15s\n", "Current Process", "Subprocess");
-	fprintf(fp, "    %-16s%-20lu%-15u\n", "Major Faults", e->maj_flt, e->cmaj_flt);
+	fprintf(fp, "    %-16s%-20u%-15u\n", "Major Faults", e->maj_flt, e->cmaj_flt);
 	fprintf(fp, "    %-16s%-20u%-15u\n", "Minor Faults", e->min_flt, e->cmin_flt);
 
 	printf(PURPLE "\n========================Process's Brief Report===========================\n" NONE);
@@ -333,7 +361,7 @@ static void print_info(struct event *e, FILE *fp)
 	printf("    %-36s%10.2f\n", "Text Segement Size(KB)", (float)(e->mm_end_code - e->mm_start_code) / 1024); // 18 task->prio - MAX_RT_PRIO  done
 	printf(YELLOW "Page Fault Report\n" NONE);
 	printf("                    %-20s%-15s\n", "Current Process", "Subprocess");
-	printf("    %-16s%-20lu%-15u\n", "Major Faults", e->maj_flt, e->cmaj_flt);
+	printf("    %-16s%-20u%-15u\n", "Major Faults", e->maj_flt, e->cmaj_flt);
 	printf("    %-16s%-20u%-15u\n", "Minor Faults", e->min_flt, e->cmin_flt);
 }
 
