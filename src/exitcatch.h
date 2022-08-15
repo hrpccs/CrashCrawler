@@ -1,25 +1,29 @@
 #ifndef EXITCATCH_H
 #define EXITCATCH_H
 
-#define MAX_STACK_DEPTH 20
+#define MAX_STACK_DEPTH 20	//parameter for BPF_MAP_TYPE_STACK_TRACE
 #define TASK_COMM_LEN 16
 #define VALUESIZE  MAX_STACK_DEPTH * sizeof(size_t)
 
 
-
-
 // should get from kernel header ?
 // #define MAX_VMA_ENTRY 51
-#define MAX_VMA_ENTRY 50
+#define MAX_VMA_ENTRY 50 //max dynamic lib searching level
 #define MAXLEN_VMA_NAME 64
 #define MAX_LEVEL 8
-#define PAGE_SHIFT 12 //8KB differs from kernels
+
+/*
+
+the macro below are all default configuration in linux kernel for x86_64
+
+*/
+
+#define PAGE_SHIFT 12 //
 #define PAGE_SIZE (1<<PAGE_SHIFT)
 #define TOP_OF_KERNEL_STACK_PADDING 0
 #define KASAN_STACK_ORDER 0
 
 #define THREAD_SIZE (PAGE_SIZE<<2)
-
 //from /include/linux/sched/prio.h
 #define MAX_NICE	19
 #define MIN_NICE	-20

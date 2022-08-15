@@ -139,14 +139,18 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 
 		int count = 0;
 #pragma unroll
+
+		// 
 		for (int i = 0; i < MAX_VMA_ENTRY; i++)
 		{
-			// if (vma) //no nullptr check will not result in segment fault crash in BPF code 
+			// if (vma) //a trick: no nullptr check will not result in segment fault crash in BPF code 
+						//and reduce the state the verifier store when loading BPF program.
+			
 			{
 				file = BPF_CORE_READ(vma, vm_file);
 				if (!file)
 				{
-					vma = BPF_CORE_READ(vma, vm_next); //when a mmap not a file mapping,  
+					vma = BPF_CORE_READ(vma, vm_next); 	//drop the non-exceutable segment to gain deeper lib searching
 					vma = BPF_CORE_READ(vma, vm_next);
 					continue;
 				}
@@ -162,7 +166,7 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 					struct dentry *dentry = filepath.dentry;
 					struct qstr dname = BPF_CORE_READ(dentry, d_name);
 
-					//read abs path of share lib
+					// read abs path of share lib , inspired by d_path() kernel function
 					// MAXLEN_VMA_NAME = 2^n;
 					for (int k = MAX_LEVEL - 1; k >= 0; k--)
 					{
@@ -172,9 +176,9 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 					}
 					count++;
 					if(BPF_CORE_READ(vma,vm_flags) & VM_EXEC){
-						// vma = BPF_CORE_READ(vma, vm_next, vm_next, vm_next);
-						vma = BPF_CORE_READ(vma, vm_next);
-						vma = BPF_CORE_READ(vma, vm_next);
+						
+						vma = BPF_CORE_READ(vma, vm_next); //a trick that will gain deeper dynamic lib searching while may miss some thirdparty dynamic lib 
+						vma = BPF_CORE_READ(vma, vm_next); //it is vary useful for searching GNU dynamic lib because the elf loading convention 
 						vma = BPF_CORE_READ(vma, vm_next);
 					}
 					vma = BPF_CORE_READ(vma, vm_next);
