@@ -9,13 +9,12 @@ We build this CrashCrawler application with C and eBPF program with libbpf with 
 To compile this project, you need libbpf with CO-RE and a linux kernel that supports eBPF and provide BTF 
 
 ### Final Round Submit
-You can refer to our final round **submit reprot** in `./doc/SYSU-160 CrashCrawler开发文档.md`. 
+You can refer to our final round [Develop Reprot](doc/SYSU-160%20CrashCrawler%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3.md) . 
 
-We also prepare our **introducing PPT** in `./doc/Crashcrawler_SYSU.pptx`. 
+We also prepare our [Breif Introducing PPT](./doc/Crashcrawler_SYSU.pptx). 
 
 If needed, you can also refer to our source code in `./src` and build them in `./build` with our makefile.
 
-check [SYSU-160 CrashCrawler开发文档](doc/SYSU-160%20CrashCrawler%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3.md)
 
 ### libbpf with CO-RE
 
