@@ -31,17 +31,6 @@ struct
 	__uint(max_entries, 8192);
 } map_user_stack_traces SEC(".maps");
 
-static char *simple_dname(const struct dentry *dentry, char *buffer, int buflen)
-{
-	struct qstr dname = BPF_CORE_READ(dentry, d_name);
-	if (dname.len < MAXLEN_VMA_NAME)
-	{
-		bpf_probe_read_kernel_str(buffer, dname.len & (MAXLEN_VMA_NAME - 1), dname.name);
-		return buffer;
-	}
-	return buffer + buflen + 1;
-}
-
 static unsigned long get_rsslim(struct signal_struct* sig){
 	struct rlimit rlim[16];
 	bpf_probe_read_kernel_str((void*)rlim,sizeof(rlim),(void*)(&(sig->rlim)));
