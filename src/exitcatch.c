@@ -289,6 +289,8 @@ struct exitcatch_bpf *skel;
 
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {
+	//this function is used to set to enable and redirect the output of bpf_trace_printk to stderr when LIBBPF_DEBUG is set
+
 	if (level == LIBBPF_DEBUG)
 		return 0;
 	return vfprintf(stderr, format, args);
@@ -296,8 +298,10 @@ static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va
 
 static volatile bool exiting = false;
 
+
 static void sig_handler(int sig)
 {
+	//handling signal to stop exitcatch process
 	exiting = true;
 }
 
@@ -314,7 +318,7 @@ static void memory_calculate(unsigned long mem, char *buffer)
 	else
 		sprintf(buffer, "%8.2fMB", (float)mem / (1024 * 1024));
 }
-static void print_process_report(struct event *e, FILE *fp)
+static void print_process_report(const struct event *e, FILE *fp)
 {
 	/*
 		print_process_report is used to print the info read by eBPF
@@ -336,24 +340,24 @@ static void print_process_report(struct event *e, FILE *fp)
 	fprintf(fp, "    %-16s%-17llu%-15llu%-20llu\n", "System Mode(us)", e->stime / ns2us, e->cstime / ns2us, e->cgtime / ns2us);
 	fprintf(fp, "Schedule Report\n");
 	// fprintf(fp, "---------------------------Schedule Report-------------------------------\n" NONE);
-	fprintf(fp, "    %-36s%10d\n", "Schedule Priority(Default)", e->prio - DEFAULT_PRIO); // 18 task->prio - MAX_RT_PRIO  done
-	fprintf(fp, "    %-36s%10d\n", "Schedule Priority(Nice)", e->prio - MAX_RT_PRIO);	  // 18 task->prio - MAX_RT_PRIO  done
-	fprintf(fp, "    %-36s%10d\n", "Schedule Priority(Realtime)", e->rt_priority);		  // 18 task->prio - MAX_RT_PRIO  done
+	fprintf(fp, "    %-36s%10d\n", "Schedule Priority(Default)", e->prio - DEFAULT_PRIO); 
+	fprintf(fp, "    %-36s%10d\n", "Schedule Priority(Nice)", e->prio - MAX_RT_PRIO);	  
+	fprintf(fp, "    %-36s%10d\n", "Schedule Priority(Realtime)", e->rt_priority);		  
 	fprintf(fp, "    %-36s%10d\n", "Schedule Policy", e->policy);						  // done
-	fprintf(fp, "    %-36s%10d\n", "Threads Number", e->num_threads);					  // 18 task->prio - MAX_RT_PRIO  done
-	fprintf(fp, "    %-36s%10d\n", "CPU Number(Last Executed On)", e->cpu);				  // 18 task->prio - MAX_RT_PRIO  done
-	fprintf(fp, "    %-36s%10d\n", "Exit Signal(Report by waitpid())", e->exit_signal);	  // 18 task->prio - MAX_RT_PRIO  done
+	fprintf(fp, "    %-36s%10d\n", "Threads Number", e->num_threads);					  
+	fprintf(fp, "    %-36s%10d\n", "CPU Number(Last Executed On)", e->cpu);				  
+	fprintf(fp, "    %-36s%10d\n", "Exit Signal(Report by waitpid())", e->exit_signal);	  
 	fprintf(fp, "Memory Report\n");
 	// fprintf(YELLOW "----------------------------Memory Report--------------------------------\n" NONE);
 	// char buffer[15] = {0};
 	// memory_calculate(e->mm_vsize, buffer);
 	// fprintf(fp,"    %-30s%15s\n","Virtual Memory Size", buffer);
-	fprintf(fp, "    %-36s%10.2f\n", "Virtual Memory Size(KB)", (float)e->mm_vsize * PAGE_SIZE / 1024);			   // 18 task->prio - MAX_RT_PRIO  done
-	fprintf(fp, "    %-36s%10.2f\n", "Resident Set Size(RSS/KB)", (float)e->mm_rss * PAGE_SIZE / 1024);			   // 18 task->prio - MAX_RT_PRIO  done
-	fprintf(fp, "    %-36s%10.2f\n", "Soft Limit Of Rss(KB)", (float)e->rsslim / 1024);							   // 18 task->prio - MAX_RT_PRIO  done
-	fprintf(fp, "    %-36s%10.2f\n", "Text Segement Size(KB)", (float)(e->mm_end_code - e->mm_start_code) / 1024); // 18 task->prio - MAX_RT_PRIO  done
-	fprintf(fp, "    %-36s%10.2f\n", "BSS Segement Size(KB)", (float)(e->mm_end_data - e->mm_start_data) / 1024);  // 18 task->prio - MAX_RT_PRIO  done
-	fprintf(fp, "    %-36s%10.2f\n", "Text Segement Size(KB)", (float)(e->mm_end_code - e->mm_start_code) / 1024); // 18 task->prio - MAX_RT_PRIO  done
+	fprintf(fp, "    %-36s%10.2f\n", "Virtual Memory Size(KB)", (float)e->mm_vsize * PAGE_SIZE / 1024);			   
+	fprintf(fp, "    %-36s%10.2f\n", "Resident Set Size(RSS/KB)", (float)e->mm_rss * PAGE_SIZE / 1024);			   
+	fprintf(fp, "    %-36s%10.2f\n", "Soft Limit Of Rss(KB)", (float)e->rsslim / 1024);							   
+	fprintf(fp, "    %-36s%10.2f\n", "Text Segement Size(KB)", (float)(e->mm_end_code - e->mm_start_code) / 1024); 
+	fprintf(fp, "    %-36s%10.2f\n", "BSS Segement Size(KB)", (float)(e->mm_end_data - e->mm_start_data) / 1024);  
+	fprintf(fp, "    %-36s%10.2f\n", "Text Segement Size(KB)", (float)(e->mm_end_code - e->mm_start_code) / 1024); 
 	fprintf(fp, "Page Fault Report\n");
 	fprintf(fp, "                    %-20s%-15s\n", "Current Process", "Subprocess");
 	fprintf(fp, "    %-16s%-20u%-15u\n", "Major Faults", e->maj_flt, e->cmaj_flt);
@@ -367,24 +371,24 @@ static void print_process_report(struct event *e, FILE *fp)
 	printf("    %-16s%-17llu%-15llu%-20llu\n", "System Mode(us)", e->stime / ns2us, e->cstime / ns2us, e->cgtime / ns2us);
 	printf(YELLOW "Schedule Report\n" NONE);
 	// printf(YELLOW "---------------------------Schedule Report-------------------------------\n" NONE);
-	printf("    %-36s%10d\n", "Schedule Priority(Default)", e->prio - DEFAULT_PRIO); // 18 task->prio - MAX_RT_PRIO  done
-	printf("    %-36s%10d\n", "Schedule Priority(Nice)", e->prio - MAX_RT_PRIO);	 // 18 task->prio - MAX_RT_PRIO  done
-	printf("    %-36s%10d\n", "Schedule Priority(Realtime)", e->rt_priority);		 // 18 task->prio - MAX_RT_PRIO  done
+	printf("    %-36s%10d\n", "Schedule Priority(Default)", e->prio - DEFAULT_PRIO); 
+	printf("    %-36s%10d\n", "Schedule Priority(Nice)", e->prio - MAX_RT_PRIO);	 
+	printf("    %-36s%10d\n", "Schedule Priority(Realtime)", e->rt_priority);		 
 	printf("    %-36s%10d\n", "Schedule Policy", e->policy);						 // done
-	printf("    %-36s%10d\n", "Threads Number", e->num_threads);					 // 18 task->prio - MAX_RT_PRIO  done
-	printf("    %-36s%10d\n", "CPU Number(Last Executed On)", e->cpu);				 // 18 task->prio - MAX_RT_PRIO  done
-	printf("    %-36s%10d\n", "Exit Signal(Report by waitpid())", e->exit_signal);	 // 18 task->prio - MAX_RT_PRIO  done
+	printf("    %-36s%10d\n", "Threads Number", e->num_threads);					 
+	printf("    %-36s%10d\n", "CPU Number(Last Executed On)", e->cpu);				 
+	printf("    %-36s%10d\n", "Exit Signal(Report by waitpid())", e->exit_signal);	 
 	printf(YELLOW "Memory Report\n" NONE);
 	// printf(YELLOW "----------------------------Memory Report--------------------------------\n" NONE);
 	// char buffer[15] = {0};
 	// memory_calculate(e->mm_vsize, buffer);
 	// printf("    %-30s%15s\n","Virtual Memory Size", buffer);
-	printf("    %-36s%10.2f\n", "Virtual Memory Size(KB)", (float)e->mm_vsize * PAGE_SIZE / 1024);			  // 18 task->prio - MAX_RT_PRIO  done
-	printf("    %-36s%10.2f\n", "Resident Set Size(RSS/KB)", (float)e->mm_rss * PAGE_SIZE / 1024);			  // 18 task->prio - MAX_RT_PRIO  done
-	printf("    %-36s%10.2f\n", "Soft Limit Of Rss(KB)", (float)e->rsslim / 1024);							  // 18 task->prio - MAX_RT_PRIO  done
-	printf("    %-36s%10.2f\n", "Text Segement Size(KB)", (float)(e->mm_end_code - e->mm_start_code) / 1024); // 18 task->prio - MAX_RT_PRIO  done
-	printf("    %-36s%10.2f\n", "BSS Segement Size(KB)", (float)(e->mm_end_data - e->mm_start_data) / 1024);  // 18 task->prio - MAX_RT_PRIO  done
-	printf("    %-36s%10.2f\n", "Text Segement Size(KB)", (float)(e->mm_end_code - e->mm_start_code) / 1024); // 18 task->prio - MAX_RT_PRIO  done
+	printf("    %-36s%10.2f\n", "Virtual Memory Size(KB)", (float)e->mm_vsize * PAGE_SIZE / 1024);			  
+	printf("    %-36s%10.2f\n", "Resident Set Size(RSS/KB)", (float)e->mm_rss * PAGE_SIZE / 1024);			  
+	printf("    %-36s%10.2f\n", "Soft Limit Of Rss(KB)", (float)e->rsslim / 1024);							  
+	printf("    %-36s%10.2f\n", "Text Segement Size(KB)", (float)(e->mm_end_code - e->mm_start_code) / 1024); 
+	printf("    %-36s%10.2f\n", "BSS Segement Size(KB)", (float)(e->mm_end_data - e->mm_start_data) / 1024);  
+	printf("    %-36s%10.2f\n", "Text Segement Size(KB)", (float)(e->mm_end_code - e->mm_start_code) / 1024); 
 	printf(YELLOW "Page Fault Report\n" NONE);
 	printf("                    %-20s%-15s\n", "Current Process", "Subprocess");
 	printf("    %-16s%-20u%-15u\n", "Major Faults", e->maj_flt, e->cmaj_flt);
@@ -392,9 +396,21 @@ static void print_process_report(struct event *e, FILE *fp)
 }
 
 static int handle_event(void *ctx, void *data, size_t data_sz)
-{
+{	
+	/*
+		handle_event is used to handle data delivered from the kernel
+		space to user space
+		
+		input:
+			ctx: the pointer points to task context 
+			data: the pointer  points to the data comes from ring_buffer
+			data_sz: size in byte of data.
+		output: return a int indicate whether is a successful search;
+			0: successful search;
+			1: failed;
+	*/
 	struct object_file *files;
-	int fileCounts = 0;
+	int file_counts = 0;
 	const struct event *e = data;
 	struct tm *tm;
 	char ts[64];
@@ -481,11 +497,11 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		if ((curr->flags & VM_EXEC) && curr->ino != last_inode)
 		{
 			last_inode = curr->ino;
-			fileCounts++;
+			file_counts++;
 		}
 	}
 
-	files = (struct object_file *)malloc(sizeof(struct object_file) * fileCounts);
+	files = (struct object_file *)malloc(sizeof(struct object_file) * file_counts);
 
 	last_inode = -1;
 	for (int i = 0, j = 0; i < e->count; i++)
@@ -520,9 +536,9 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		{
 			break;
 		}
-		int index = search_object_file(stack, files, fileCounts);
+		int index = search_object_file(stack, files, file_counts);
 		// printf("   ");
-		int searchResult = get_user_func_name(stack - files[index].segment_start, (const char *)files[index].exec_file_path, stack_func_name);
+		get_user_func_name(stack - files[index].segment_start, (const char *)files[index].exec_file_path, stack_func_name);
 		fprintf(fp, "    0x%016lx %s\n", stack, stack_func_name);
 		printf("    0x%016lx %s\n", stack, stack_func_name);
 	}
