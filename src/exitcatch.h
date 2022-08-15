@@ -55,68 +55,70 @@
 #endif
 
 struct mmap_struct{
-	unsigned long start;
-	unsigned long end;
-	unsigned long flags;
-	unsigned long long pgoff;
-	unsigned long ino;
-	dev_t dev;
-	char name[MAX_LEVEL][MAXLEN_VMA_NAME+1];
+	unsigned long start; //segment start address
+	unsigned long end;	//segment end address
+	unsigned long flags;	//segement rwx
+	unsigned long long pgoff;	//page offset
+	unsigned long ino;	//inode number
+	dev_t dev;			//device num
+	char name[MAX_LEVEL][MAXLEN_VMA_NAME+1];	//abslote object file path
 };
 
-struct event{
-		unsigned long kernel_stack_id;
-		unsigned long user_stack_id;
-		unsigned long count;
-		struct mmap_struct mmap[MAX_VMA_ENTRY];
-		int sig;
-		int exit_code;
 
-		pid_t pid;//1  done
-		pid_t tid;//  done
-		char comm[TASK_COMM_LEN];//2  done
+//check handle_event() in exitcatch.c for concrete description
+struct event{ 
+		unsigned long kernel_stack_id; //key to access kernel stack map
+		unsigned long user_stack_id;	//kep to access user stack map
+		unsigned long count;			//mmap count
+		struct mmap_struct mmap[MAX_VMA_ENTRY]; //get mmap from kernel space
+		int sig;						//signal resulting crash
+		int exit_code;					
 
-		pid_t ppid;//4 ppid  done
+		pid_t pid;
+		pid_t tid;
+		char comm[TASK_COMM_LEN];// task name
 
-		unsigned int flags; //9 task->flags;  done
+		pid_t ppid;
+
+		unsigned int flags; 
 		
-		// int permitted; no need , because we are the boss
-		unsigned min_flt,maj_flt; //10 - 13  done
+		
+		unsigned min_flt,maj_flt; 
 		unsigned cmin_flt,cmaj_flt;
 
-		unsigned long long cutime; //14-17  done ns
+		unsigned long long cutime; 
 		unsigned long long cstime;
 		unsigned long long stime;
 		unsigned long long utime;
 		unsigned long long cgtime; 
 		unsigned long long gtime; 
 
-		int prio; //18 task->prio - MAX_RT_PRIO  done
-		int nice; //19 prio  - DEFAULT_PRIO
-		int num_threads; //20 task->signal->nr_threads;
-		unsigned long long start_time; //22  done
+		int prio; //task->prio - MAX_RT_PRIO  
+		int nice; // prio  - DEFAULT_PRIO
+		int num_threads; //task->signal->nr_threads;
+		unsigned long long start_time; //
 
-		unsigned long mm_vsize; //23  done
-		unsigned long mm_rss;	//24 mm_rss//done
-	    unsigned long rsslim; //24
-		unsigned long mm_start_code; //25  done
-		unsigned long mm_end_code; //26  done
-		unsigned long mm_start_stack; //27  done
-		unsigned long esp; //28//done
-		unsigned long eip; //29//done
+		unsigned long mm_vsize; //
+		unsigned long mm_rss;	//mm_rss
+	    unsigned long rsslim; //
+		unsigned long mm_start_code; //
+		unsigned long mm_end_code; //
+		unsigned long mm_start_stack; //
+		unsigned long esp; //
+		unsigned long eip; //
 
-		int exit_signal;  //done
-		unsigned int cpu;//done
-		unsigned int rt_priority;//done
-		unsigned int policy;//done
+		int exit_signal;  
+		unsigned int cpu;
+		unsigned int rt_priority;
+		unsigned int policy;
 
-		unsigned long mm_start_data;//done
-		unsigned long mm_end_data;//done
-		unsigned long mm_start_brk;//done
-		unsigned long mm_arg_start;//done
-		unsigned long mm_arg_end;//done
-		unsigned long mm_env_start;//done
-		unsigned long mm_env_end;//done
+		unsigned long mm_start_data;
+		unsigned long mm_end_data;
+		unsigned long mm_start_brk;
+		unsigned long mm_arg_start;
+		unsigned long mm_arg_end;
+		unsigned long mm_env_start;
+		unsigned long mm_env_end;
 
 
 		

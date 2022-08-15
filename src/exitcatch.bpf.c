@@ -14,7 +14,7 @@ struct
 	__uint(max_entries, 64 * sizeof(struct event));
 } rb SEC(".maps");
 
-// Use to store stacktrace and will be used by bpf_get_stackid()
+// Use to store kernel stacktrace and will be used by bpf_get_stackid()
 struct
 {
 	__uint(type, BPF_MAP_TYPE_STACK_TRACE);
@@ -23,6 +23,7 @@ struct
 	__uint(max_entries, 8192);
 } map_kernel_stack_traces SEC(".maps");
 
+// Use to store user stacktrace
 struct
 {
 	__uint(type, BPF_MAP_TYPE_STACK_TRACE);
@@ -31,6 +32,8 @@ struct
 	__uint(max_entries, 8192);
 } map_user_stack_traces SEC(".maps");
 
+
+// get rsslim from signal , inspired by kernel function - do_task_stat()
 static unsigned long get_rsslim(struct signal_struct* sig){
 	struct rlimit rlim[16];
 	bpf_probe_read_kernel_str((void*)rlim,sizeof(rlim),(void*)(&(sig->rlim)));
@@ -38,7 +41,7 @@ static unsigned long get_rsslim(struct signal_struct* sig){
 
 }
 
-
+// get rsslim from signal , inspired by kernel function - do_task_stat()
 static unsigned long get_mm_rss(struct mm_struct* mm){
 	struct mm_rss_stat rss_stat =  BPF_CORE_READ(mm,rss_stat);
 	return rss_stat.count[0].counter +
@@ -46,9 +49,8 @@ static unsigned long get_mm_rss(struct mm_struct* mm){
 			rss_stat.count[3].counter;
 }
 
-// the path in the debugfs, and debugfs need to be mounted
-// SEC("tp/sched/sched_process_exit")
-// int trace_event_raw_sched_process_exit(void *ctx)
+// the path in the debugfs, and debugfs need to be mounted first
+
 SEC("kprobe/do_exit")
 int BPF_KPROBE(kprobe__do_exit, long exitcode)
 {
@@ -117,6 +119,9 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 		e->rt_priority = BPF_CORE_READ(task, rt_priority);
 		e->policy = BPF_CORE_READ(task, policy);
 
+
+		//this code to get user sapce register are inspired by 
+		//task_pt_regs(task) in linux/arch/x86/include/asm/processor.h
 		void* __current_stack_page = BPF_CORE_READ(task, stack);
 		void* __ptr = __current_stack_page + THREAD_SIZE - TOP_OF_KERNEL_STACK_PADDING;
 		struct pt_regs* _tctx = ((struct pt_regs *)__ptr) - 1;
@@ -136,12 +141,12 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 #pragma unroll
 		for (int i = 0; i < MAX_VMA_ENTRY; i++)
 		{
-			// if (vma)
+			// if (vma) //no nullptr check will not result in segment fault crash in BPF code 
 			{
 				file = BPF_CORE_READ(vma, vm_file);
 				if (!file)
 				{
-					vma = BPF_CORE_READ(vma, vm_next);
+					vma = BPF_CORE_READ(vma, vm_next); //when a mmap not a file mapping,  
 					vma = BPF_CORE_READ(vma, vm_next);
 					continue;
 				}
