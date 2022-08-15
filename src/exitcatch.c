@@ -128,12 +128,12 @@ static void sym_initialize()
 static int search_kernel_symbol(unsigned long query)
 {
 	/*
-		search_kernel_symbol uses binary search to search for
+		search_kernel_symbol uses binary search(lower bound version) to search for
 		kernel stack symbol.
 		input:
-			n index;
+			query: the address in kernel stack;
 		output: 
-			return the result
+			return the index in kernel symbol table.
 	*/
 	int left = 0, right = sym_list.length;
 	while (left < right)
@@ -147,8 +147,17 @@ static int search_kernel_symbol(unsigned long query)
 	left = left > 0 ? --left : left;
 	return left;
 }
+
 static int search_object_file(unsigned long query, struct object_file *files, int file_count)
 {
+	/*
+		search_object_symbol uses binary search(lower bound version) to search for
+		user stack symbol.
+		input:
+			query: the address in user stack;
+		output: 
+			return the index in user symbol table.
+	*/
 	int left = 0, right = file_count - 1;
 	while (left < right)
 	{
@@ -161,6 +170,7 @@ static int search_object_file(unsigned long query, struct object_file *files, in
 	left = left > 0 ? --left : left;
 	return left;
 }
+
 static int get_user_func_name(unsigned long vaddr, const char *object_file_path, char *stack_func_name)
 {
 	/*
@@ -239,6 +249,9 @@ static int get_user_func_name(unsigned long vaddr, const char *object_file_path,
 
 static void print_logo()
 {
+	/*
+		print_logo is used to print the welcome page with some basic information.
+	*/
 	FILE *fp;
 	fp = fopen("../src/logo/2.txt", "r");
 	while (1)
@@ -254,6 +267,8 @@ static void print_logo()
 static void sysinfo_initialize()
 {
 	/*
+		sysinfo_initialize is used to print the static information
+		of the computer, like CPU info, Memory info, etc.
 		硬件信息脚本
 		https://blog.csdn.net/LvJzzZ/article/details/112029991
 	*/
@@ -289,7 +304,8 @@ static void sig_handler(int sig)
 static void memory_calculate(unsigned long mem, char *buffer)
 {
 	/*
-		Calcalate the memory size and return it with correspondent size.
+		memory_calculate is used to calcalate the memory size 
+		and return it with correspondent size.
 	*/
 	if (mem < 1024)
 		sprintf(buffer, "%8.2fB", (float)mem);
@@ -298,8 +314,18 @@ static void memory_calculate(unsigned long mem, char *buffer)
 	else
 		sprintf(buffer, "%8.2fMB", (float)mem / (1024 * 1024));
 }
-static void print_info(struct event *e, FILE *fp)
+static void print_process_report(struct event *e, FILE *fp)
 {
+	/*
+		print_process_report is used to print the info read by eBPF
+		function and organize it in readable format.
+		input:
+			e: the pointer points to the data read by eBPF function. 
+			fp: the file pointer points to the output log files.
+			stack_func_name: the return function name of the virtual address;
+		output: No return values.
+	*/
+
 	const long ns2us = 1000;
 
 	fprintf(fp, "\n========================Process's Brief Report===========================\n");
@@ -412,7 +438,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	printf(LIGHT_GREEN "%-14s" YELLOW " %-16s" NONE " %-7d %-7d %-7d" RED " %-9d %d\n" NONE,
 		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
 	// Print brief report to the process
-	print_info(e, fp);
+	print_process_report(e, fp);
 	// Trace and dependencies
 	fprintf(fp, "\n====================Stack Trace And Dependencies=========================\n");
 	printf(PURPLE "\n====================Stack Trace And Dependencies=========================\n" NONE);
@@ -550,6 +576,9 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 
 int main(int argc, char **argv)
 {
+	/*
+		THe main function.
+	*/
 	sysinfo_initialize();
 	sym_initialize();
 
