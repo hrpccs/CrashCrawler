@@ -19,12 +19,12 @@
 #define NAMELIMIT 100
 #define MAXLEN_PATH 100
 #define LISTLIMT 500000
-const char *KALLPATH = "/proc/kallsyms";
-char logpath[MAXLEN_PATH] = "/var/log/crashlog";
+const char *kallysyms_path = "/proc/kallsyms";
+char log_path[MAXLEN_PATH] = "/var/log/crashlog";
 
-char sysinfo_buffer[8000];
+char sys_info_buf[8000];
 
-typedef struct
+struct symbol_node
 {
 	/*
 		One node for symbol table
@@ -32,25 +32,25 @@ typedef struct
 	unsigned long int address;
 	char flag;
 	char name[NAMELIMIT];
-	//    symbolNode(unsigned long int _addr = 0, char _flag = 0, _name = ""):
-} symbolNode;
+	//    symbol_node(unsigned long int _addr = 0, char _flag = 0, _name = ""):
+};
 
-typedef struct
+struct symbolList
 {
 	/*
 		The whole table
 	*/
-	symbolNode nodeArray[LISTLIMT];
+	symbol_node node_array[LISTLIMT];
 	int length;
-} symbolList;
+};
 
-struct RelaventFile
+struct object_file
 {
 	char exec_file_path[MAX_LEVEL * MAXLEN_VMA_NAME + MAX_LEVEL];
 	unsigned long segment_start;
 	unsigned long segment_end;
 };
-symbolList symList;
+struct symbolList sym_list;
 
 static int char2int(char c)
 {
@@ -59,24 +59,24 @@ static int char2int(char c)
 	else
 		return c - 'a' + 10;
 }
-static long int calIndex(int n)
+static long int get_index(int n)
 {
 	long int ans = 1;
 	while (n--)
 		ans *= 16;
 	return ans;
 }
-static void initializeSym()
+static void sym_initialize()
 {
-	FILE *fp = fopen(KALLPATH, "r");
+	FILE *fp = fopen(kallysyms_path, "r");
 	char *line = NULL;
 	size_t len = 0;
-	size_t readLength;
-	symList.length = 0;
-	while ((readLength = getline(&line, &len, fp)) != -1)
+	size_t read_count;
+	sym_list.length = 0;
+	while ((read_count = getline(&line, &len, fp)) != -1)
 	{
 		int mod = 0;
-		for (int i = 0; i < readLength; i++)
+		for (int i = 0; i < read_count; i++)
 		{
 			if (line[i] == '\t' || line[i] == '\n')
 				break;
@@ -88,30 +88,30 @@ static void initializeSym()
 			if (mod == 0)
 			{
 				if (i == 0)
-					symList.nodeArray[symList.length].address = 0;
-				symList.nodeArray[symList.length].address += calIndex(15 - i) * char2int(line[i]);
+					sym_list.node_array[sym_list.length].address = 0;
+				sym_list.node_array[sym_list.length].address += get_index(15 - i) * char2int(line[i]);
 			}
 			else if (mod == 1)
 			{
-				symList.nodeArray[symList.length].flag = line[i];
+				sym_list.node_array[sym_list.length].flag = line[i];
 			}
 			else
 			{
 				if (i == 19)
-					memset(symList.nodeArray[symList.length].name, 0, sizeof(symList.nodeArray[symList.length].name));
-				symList.nodeArray[symList.length].name[i - 19] = line[i];
+					memset(sym_list.node_array[sym_list.length].name, 0, sizeof(sym_list.node_array[sym_list.length].name));
+				sym_list.node_array[sym_list.length].name[i - 19] = line[i];
 			}
 		}
-		++symList.length;
+		++sym_list.length;
 	}
 }
-static int searchKernelSymbol(unsigned long query)
+static int search_kernel_symbol(unsigned long query)
 {
-	int left = 0, right = symList.length;
+	int left = 0, right = sym_list.length;
 	while (left < right)
 	{
 		int mid = (left + right) / 2;
-		if (symList.nodeArray[mid].address >= query)
+		if (sym_list.node_array[mid].address >= query)
 			right = mid;
 		else
 			left = mid + 1;
@@ -119,9 +119,9 @@ static int searchKernelSymbol(unsigned long query)
 	left = left > 0 ? --left : left;
 	return left;
 }
-static int searchUserFile(unsigned long query, struct RelaventFile *files, int fileCount)
+static int search_object_file(unsigned long query, struct object_file *files, int file_count)
 {
-	int left = 0, right = fileCount - 1;
+	int left = 0, right = file_count - 1;
 	while (left < right)
 	{
 		int mid = (left + right) / 2;
@@ -133,112 +133,112 @@ static int searchUserFile(unsigned long query, struct RelaventFile *files, int f
 	left = left > 0 ? --left : left;
 	return left;
 }
-static int userstackNameSearch(unsigned long virtualAddr, const char *filePath, char *stackFunctionName)
+static int get_user_func_name(unsigned long vaddr, const char *object_file_path, char *stack_func_name)
 {
 	/*
-		userstackNameSearch is used to search for the symbol name of a specific
+		get_user_func_name is used to search for the symbol name of a specific
 		virtual address in user stack.
 		input:
-			virtualAddr: specific address of memory;
-			filePath: binary Path of the specific tmpAddr;
-			stackFunctionName: the return name of a stack;
+			vaddr: specific address of memory;
+			object_file_path: binary Path of the specific tmpAddr;
+			stack_func_name: the return function name of the virtual address;
 		output: return a int indicate whether is a successful search;
 			0: successful search;
 			1: failed;
 	*/
 	FILE *fp;
-	unsigned long offset = 0, physicalAddr = 0, flag = 1, stackAddr = 0;
+	unsigned long offset = 0, paddr = 0, flag = 1, saddr = 0;
 	char cmd[NAMELIMIT];
-	int foundSymbols = 0;
-	memset(stackFunctionName, 0, sizeof(stackFunctionName));
+	int found_symbols = 0;
+	memset(stack_func_name, 0, sizeof(stack_func_name));
 	/*
 		Reading offset
 	*/
 	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, "readelf -l %s | awk '$4==\"E\"{print x};{x=$2}'", filePath);
+	sprintf(cmd, "readelf -l %s | awk '$4==\"E\"{print x};{x=$2}'", object_file_path);
 	fp = popen(cmd, "r");
 	fscanf(fp, "%lx", &offset);
-	physicalAddr = virtualAddr + offset;
+	paddr = vaddr + offset;
 	pclose(fp);
 	/*
 		Reading function symbols
 	*/
 	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, "nm -n -D -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
+	sprintf(cmd, "nm -n -D -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", object_file_path);
 	fp = popen(cmd, "r");
-	char tmpName[NAMELIMIT] = {0};
-	while (fscanf(fp, "%lx", &stackAddr) == 1)
+	char tmp_name[NAMELIMIT] = {0};
+	while (fscanf(fp, "%lx", &saddr) == 1)
 	{
-		foundSymbols = 1;
-		if (physicalAddr < stackAddr)
+		found_symbols = 1;
+		if (paddr < saddr)
 		{
 			flag = 0;
 			break;
 		}
-		fscanf(fp, "%s", tmpName);
-		offset = physicalAddr - stackAddr;
+		fscanf(fp, "%s", tmp_name);
+		offset = paddr - saddr;
 	}
 	if (!flag)
 	{
-		sprintf(stackFunctionName, "%s+0x%lx", tmpName, offset);
+		sprintf(stack_func_name, "%s+0x%lx", tmp_name, offset);
 		return flag;
 	}
-	if (foundSymbols)
+	if (found_symbols)
 	{
-		sprintf(stackFunctionName, "[No Function Name]");
+		sprintf(stack_func_name, "[No Function Name]");
 		return flag;
 	}
 	// Looking for the stack in the dynamic Libs
 	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, "nm -n -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
+	sprintf(cmd, "nm -n -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", object_file_path);
 	fp = popen(cmd, "r");
-	while (fscanf(fp, "%lx", &stackAddr) == 1)
+	while (fscanf(fp, "%lx", &saddr) == 1)
 	{
-		if (physicalAddr < stackAddr)
+		if (paddr < saddr)
 		{
 			flag = 0;
 			break;
 		}
-		fscanf(fp, "%s", tmpName);
-		offset = physicalAddr - stackAddr;
+		fscanf(fp, "%s", tmp_name);
+		offset = paddr - saddr;
 	}
 	if (!flag)
-		sprintf(stackFunctionName, "%s+0x%lx", tmpName, offset);
+		sprintf(stack_func_name, "%s+0x%lx", tmp_name, offset);
 	else
-		sprintf(stackFunctionName, "[No Function Name]");
+		sprintf(stack_func_name, "[No Function Name]");
 	return flag;
 }
 
-static void printLogo()
+static void print_logo()
 {
 	FILE *fp;
 	fp = fopen("../src/logo/2.txt", "r");
 	while (1)
 	{
-		memset(sysinfo_buffer, 0, sizeof(sysinfo_buffer));
-		void *ptr = fgets(sysinfo_buffer, sizeof(sysinfo_buffer), fp);
+		memset(sys_info_buf, 0, sizeof(sys_info_buf));
+		void *ptr = fgets(sys_info_buf, sizeof(sys_info_buf), fp);
 		if (ptr == NULL)
 			break;
-		printf("%s", sysinfo_buffer);
+		printf("%s", sys_info_buf);
 	}
 	fclose(fp);
 }
-static void initializeSysInfo()
+static void sysinfo_initialize()
 {
 	/*
 		硬件信息脚本
 		https://blog.csdn.net/LvJzzZ/article/details/112029991
 	*/
-	printLogo();
+	print_logo();
 	FILE *fp;
 	fp = popen("bash ../src/hardware.sh", "r");
 	while (1)
 	{
-		memset(sysinfo_buffer, 0, sizeof(sysinfo_buffer));
-		void *ptr = fgets(sysinfo_buffer, sizeof(sysinfo_buffer), fp);
+		memset(sys_info_buf, 0, sizeof(sys_info_buf));
+		void *ptr = fgets(sys_info_buf, sizeof(sys_info_buf), fp);
 		if (ptr == NULL)
 			break;
-		printf("%s", sysinfo_buffer);
+		printf("%s", sys_info_buf);
 	}
 	pclose(fp);
 }
@@ -258,7 +258,7 @@ static void sig_handler(int sig)
 	exiting = true;
 }
 
-static void memoryCal(unsigned long mem, char *buffer)
+static void memory_calculate(unsigned long mem, char *buffer)
 {
 	/*
 		Calcalate the memory size and return it with correspondent size.
@@ -270,7 +270,7 @@ static void memoryCal(unsigned long mem, char *buffer)
 	else
 		sprintf(buffer, "%8.2fMB", (float)mem / (1024 * 1024));
 }
-static void printfInfo(struct event *e, FILE *fp)
+static void print_info(struct event *e, FILE *fp)
 {
 	const long ns2us = 1000;
 
@@ -292,7 +292,7 @@ static void printfInfo(struct event *e, FILE *fp)
 	fprintf(fp, "Memory Report\n");
 	// fprintf(YELLOW "----------------------------Memory Report--------------------------------\n" NONE);
 	// char buffer[15] = {0};
-	// memoryCal(e->mm_vsize, buffer);
+	// memory_calculate(e->mm_vsize, buffer);
 	// fprintf(fp,"    %-30s%15s\n","Virtual Memory Size", buffer);
 	fprintf(fp, "    %-36s%10.2f\n", "Virtual Memory Size(KB)", (float)e->mm_vsize * PAGE_SIZE / 1024);			   // 18 task->prio - MAX_RT_PRIO  done
 	fprintf(fp, "    %-36s%10.2f\n", "Resident Set Size(RSS/KB)", (float)e->mm_rss * PAGE_SIZE / 1024);			   // 18 task->prio - MAX_RT_PRIO  done
@@ -323,7 +323,7 @@ static void printfInfo(struct event *e, FILE *fp)
 	printf(YELLOW "Memory Report\n" NONE);
 	// printf(YELLOW "----------------------------Memory Report--------------------------------\n" NONE);
 	// char buffer[15] = {0};
-	// memoryCal(e->mm_vsize, buffer);
+	// memory_calculate(e->mm_vsize, buffer);
 	// printf("    %-30s%15s\n","Virtual Memory Size", buffer);
 	printf("    %-36s%10.2f\n", "Virtual Memory Size(KB)", (float)e->mm_vsize * PAGE_SIZE / 1024);			  // 18 task->prio - MAX_RT_PRIO  done
 	printf("    %-36s%10.2f\n", "Resident Set Size(RSS/KB)", (float)e->mm_rss * PAGE_SIZE / 1024);			  // 18 task->prio - MAX_RT_PRIO  done
@@ -339,8 +339,8 @@ static void printfInfo(struct event *e, FILE *fp)
 
 static int handle_event(void *ctx, void *data, size_t data_sz)
 {
-	struct RelaventFile *files;
-	int file_count = 0;
+	struct object_file *files;
+	int fileCounts = 0;
 	const struct event *e = data;
 	struct tm *tm;
 	char ts[64];
@@ -360,7 +360,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	FILE *fp = fopen(filename, "w");
 	fprintf(fp, "\n			  %s\n", filename);
 	printf(YELLOW "\n			  %s\n" NONE, filename);
-	chdir(logpath);
+	chdir(log_path);
 	int ret = bpf_map__lookup_elem(
 		skel->maps.map_kernel_stack_traces,
 		&e->kernel_stack_id,
@@ -384,7 +384,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	printf(LIGHT_GREEN "%-14s" YELLOW " %-16s" NONE " %-7d %-7d %-7d" RED " %-9d %d\n" NONE,
 		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
 	// Print brief report to the process
-	printfInfo(e, fp);
+	print_info(e, fp);
 	// Trace and dependencies
 	fprintf(fp, "\n====================Stack Trace And Dependencies=========================\n");
 	printf(PURPLE "\n====================Stack Trace And Dependencies=========================\n" NONE);
@@ -397,9 +397,9 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		{
 			break;
 		}
-		int index = searchKernelSymbol(stack);
-		fprintf(fp, "    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
-		printf("    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
+		int index = search_kernel_symbol(stack);
+		fprintf(fp, "    %#lx %s+%#lx\n", stack, sym_list.node_array[index].name, stack - sym_list.node_array[index].address);
+		printf("    %#lx %s+%#lx\n", stack, sym_list.node_array[index].name, stack - sym_list.node_array[index].address);
 	}
 
 	// Get and print User stacktrace
@@ -427,11 +427,11 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		if ((curr->flags & VM_EXEC) && curr->ino != last_inode)
 		{
 			last_inode = curr->ino;
-			file_count++;
+			fileCounts++;
 		}
 	}
 
-	files = (struct RelaventFile *)malloc(sizeof(struct RelaventFile) * file_count);
+	files = (struct object_file *)malloc(sizeof(struct object_file) * fileCounts);
 
 	last_inode = -1;
 	for (int i = 0, j = 0; i < e->count; i++)
@@ -458,7 +458,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 
 	fprintf(fp, "User Stack Trace\n");
 	printf(YELLOW "User Stack Trace:\n" NONE);
-	char stackFunctionName[NAMELIMIT] = {0};
+	char stack_func_name[NAMELIMIT] = {0};
 	for (int i = 0; i < MAX_STACK_DEPTH; i++)
 	{
 		stack = stacks[i];
@@ -466,11 +466,11 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		{
 			break;
 		}
-		int index = searchUserFile(stack, files, file_count);
+		int index = search_object_file(stack, files, fileCounts);
 		// printf("   ");
-		int searchResult = userstackNameSearch(stack - files[index].segment_start, (const char *)files[index].exec_file_path, stackFunctionName);
-		fprintf(fp, "    0x%016lx %s\n", stack, stackFunctionName);
-		printf("    0x%016lx %s\n", stack, stackFunctionName);
+		int searchResult = get_user_func_name(stack - files[index].segment_start, (const char *)files[index].exec_file_path, stack_func_name);
+		fprintf(fp, "    0x%016lx %s\n", stack, stack_func_name);
+		printf("    0x%016lx %s\n", stack, stack_func_name);
 	}
 
 	fprintf(fp, "[Dependencies] Dynamic Libs:\n");
@@ -522,8 +522,8 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 
 int main(int argc, char **argv)
 {
-	initializeSysInfo();
-	initializeSym();
+	sysinfo_initialize();
+	sym_initialize();
 
 	printf(YELLOW ">>>>>>>Finished initializing...\n" NONE);
 	// sudo mount -t debugfs none /sys/kernel/debug
@@ -536,9 +536,9 @@ int main(int argc, char **argv)
 	}
 
 	if (argc == 2)
-		strcpy(logpath, argv[1]);
+		strcpy(log_path, argv[1]);
 
-	printf(BLUE "Log will be saved in: %s" NONE "\n", logpath);
+	printf(BLUE "Log will be saved in: %s" NONE "\n", log_path);
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 	/* Set up libbpf errors and debug info callback */
 	libbpf_set_print(libbpf_print_fn);
@@ -574,8 +574,8 @@ int main(int argc, char **argv)
 	/* Set up ring buffer polling */
 
 	//
-	mkdir(logpath, S_IRWXU);
-	chdir(logpath);
+	mkdir(log_path, S_IRWXU);
+	chdir(log_path);
 	//
 	rb = ring_buffer__new(bpf_map__fd(skel->maps.rb), handle_event, NULL, NULL);
 	if (!rb)
