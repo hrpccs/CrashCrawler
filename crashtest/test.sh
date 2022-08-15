@@ -22,7 +22,7 @@ pushd $SEGFAULT_PATH
         $CC $CFLAGS $SRC -o $BIN
         ./$BIN
     done
-    for slp in {1..10000}
+    for slp in {1..100000}
     do
         SLP=1
     done

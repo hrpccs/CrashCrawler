@@ -35,7 +35,7 @@ struct symbol_node
 	//    symbol_node(unsigned long int _addr = 0, char _flag = 0, _name = ""):
 };
 
-struct symbolList
+struct symbol_list
 {
 	/*
 		The whole table for kernel symbol table.
@@ -50,7 +50,7 @@ struct object_file
 	unsigned long segment_start;
 	unsigned long segment_end;
 };
-struct symbolList sym_list;
+struct symbol_list sym_list;
 
 static int char2int(char c)
 {
@@ -289,7 +289,9 @@ struct exitcatch_bpf *skel;
 
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {
-	//this function is used to set to enable and redirect the output of bpf_trace_printk to stderr when LIBBPF_DEBUG is set
+	/*
+		this function is used to set to enable and redirect the output of bpf_trace_printk to stderr when LIBBPF_DEBUG is set
+	*/
 
 	if (level == LIBBPF_DEBUG)
 		return 0;
@@ -301,7 +303,9 @@ static volatile bool exiting = false;
 
 static void sig_handler(int sig)
 {
-	//handling signal to stop exitcatch process
+	/*
+		handling signal to stop exitcatch process
+	*/
 	exiting = true;
 }
 
@@ -405,8 +409,8 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			ctx: the pointer points to task context 
 			data: the pointer  points to the data comes from ring_buffer
 			data_sz: size in byte of data.
-		output: return a int indicate whether is a successful search;
-			0: successful search;
+		output: return a int indicate whether is a successful handling;
+			0: successful handling;
 			1: failed;
 	*/
 	struct object_file *files;

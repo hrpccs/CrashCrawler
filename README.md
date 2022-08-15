@@ -1,5 +1,18 @@
 ### Introduction
 
+CrashCrawler is a Linux crashed process capture program based on eBPF.
+```
+    Adivsed by
+          Prof. Pengfei Chen
+          Shengjie Ji
+
+     Developed by
+          Prof. Pengfei Chen
+          HPC Students of SYSU in Grade 2020
+          RuiPeng Hong
+          Zhe Tang
+          Hengyu Fu
+```
 Developing the *CrashCrawler* for https://github.com/oscomp/proj160-osmatch-crash-collection
 
 You can also reffer our github https://github.com/hrpccs/OScomp
@@ -16,7 +29,7 @@ We also prepare our [Breif Introducing PPT](./doc/Crashcrawler_SYSU.pptx).
 If needed, you can also refer to our source code in `./src` and build them in `./build` with our makefile.
 
 
-### libbpf with CO-RE
+### Dependencies: libbpf with CO-RE
 
 To use BTF and CO-RE, `CONFIG_DEBUG_INFO_BTF=y` and `CONFIG_DEBUG_INFO_BTF_MODULES=y` need to be enabled. If you don't want to rebuild the kernel, the following distos have enabled those options by default:
 
