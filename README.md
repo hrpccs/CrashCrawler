@@ -1,5 +1,18 @@
 ### Introduction
 
+CrashCrawler is a Linux crashed process capture program based on eBPF.
+```
+    Adivsed by
+          Prof. Pengfei Chen
+          Shengjie Ji
+
+     Developed by
+          Prof. Pengfei Chen
+          HPC Students of SYSU in Grade 2020
+          RuiPeng Hong
+          Zhe Tang
+          Hengyu Fu
+```
 Developing the *CrashCrawler* for https://github.com/oscomp/proj160-osmatch-crash-collection
 
 You can also reffer our github https://github.com/hrpccs/OScomp
@@ -8,20 +21,15 @@ We build this CrashCrawler application with C and eBPF program with libbpf with 
 
 To compile this project, you need libbpf with CO-RE and a linux kernel that supports eBPF and provide BTF 
 
-### Develop document
+### Final Round Submit
+You can refer to our final round [Develop Reprot](doc/SYSU-160%20CrashCrawler%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3.md) . 
 
-check [5_15_阶段性开发文档.md](doc\阶段性开发文档.md)
-
-### Primary Round Submit
-You can refer to our primary round **submit reprot** in `./doc/SYSU-160 CrashCrawler开发文档.md`. 
-
-We also prepare our **introducing PPT** in `./doc/Crashcrawler_SYSU.pptx`. 
+We also prepare our [Breif Introducing PPT](./doc/Crashcrawler_SYSU.pptx). 
 
 If needed, you can also refer to our source code in `./src` and build them in `./build` with our makefile.
 
-check [SYSU-160 CrashCrawler开发文档](doc/SYSU-160%20CrashCrawler%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3.md)
 
-### libbpf with CO-RE
+### Dependencies: libbpf with CO-RE
 
 To use BTF and CO-RE, `CONFIG_DEBUG_INFO_BTF=y` and `CONFIG_DEBUG_INFO_BTF_MODULES=y` need to be enabled. If you don't want to rebuild the kernel, the following distos have enabled those options by default:
 
@@ -57,9 +65,5 @@ sudo mount -t debugfs none /sys/kernel/debug
 sudo ./exitcatch.bin <Self-designed Path>
 ```
 
-### BTF for distribution 
 
-If you want to install this application for another machine with different kernel version, you may change the default BTF path for the BTFGen, which will generate a min_size_BTF file you need for supporting eBPF program on target machine. Check [this](https://kinvolk.io/blog/2022/03/btfgen-one-step-closer-to-truly-portable-ebpf-programs/) for more details for BTF. 
-
-*CrashCrawler* will support this sooner or later.
 

@@ -19,65 +19,84 @@
 #define NAMELIMIT 100
 #define MAXLEN_PATH 100
 #define LISTLIMT 500000
-const char *KALLPATH = "/proc/kallsyms";
-char logpath[MAXLEN_PATH] = "/var/log/crashlog";
+const char *kallysyms_path = "/proc/kallsyms";
+char log_path[MAXLEN_PATH] = "/var/log/crashlog";
 
-char sysinfo_buffer[800];
+char sys_info_buf[8000];
 
-typedef struct
+struct symbol_node
 {
 	/*
-		One node for symbol table
+		One node for kernel symbol table.
 	*/
 	unsigned long int address;
 	char flag;
 	char name[NAMELIMIT];
-	//    symbolNode(unsigned long int _addr = 0, char _flag = 0, _name = ""):
-} symbolNode;
+	//    symbol_node(unsigned long int _addr = 0, char _flag = 0, _name = ""):
+};
 
-typedef struct
+struct symbol_list
 {
 	/*
-		The whole table
+		The whole table for kernel symbol table.
 	*/
-	symbolNode nodeArray[LISTLIMT];
+	struct symbol_node node_array[LISTLIMT];
 	int length;
-} symbolList;
+};
 
-struct RelaventFile {
+struct object_file
+{
 	char exec_file_path[MAX_LEVEL * MAXLEN_VMA_NAME + MAX_LEVEL];
 	unsigned long segment_start;
 	unsigned long segment_end;
 };
-symbolList symList;
+struct symbol_list sym_list;
 
 static int char2int(char c)
 {
+	/*
+		char2int is used to convert char to int
+		input:
+			c: char to be convert;
+		output: 
+			return an int
+	*/
 	if (c <= '9' && c >= '0')
 		return c - '0';
 	else
 		return c - 'a' + 10;
 }
-static long int calIndex(int n)
+
+static long int get_index(int n)
 {
+	/*
+		get_index is used to do exponent arithmetic.
+		input:
+			n index to calculate;
+		output: 
+			return the result
+	*/
 	long int ans = 1;
 	while (n--)
 		ans *= 16;
 	return ans;
 }
-static void initializeSym()
+
+static void sym_initialize()
 {
-	FILE *fp = fopen(KALLPATH, "r");
+	/*
+		sym_initialize is used to initialize the kernel symbol table.
+	*/
+	FILE *fp = fopen(kallysyms_path, "r");
 	char *line = NULL;
 	size_t len = 0;
-	size_t readLength;
-	symList.length = 0;
-	while ((readLength = getline(&line, &len, fp)) != -1)
+	size_t read_count;
+	sym_list.length = 0;
+	while ((read_count = getline(&line, &len, fp)) != -1)
 	{
 		int mod = 0;
-		for (int i = 0; i < readLength; i++)
+		for (int i = 0; i < read_count; i++)
 		{
-			// printf("%c",line[i]);
 			if (line[i] == '\t' || line[i] == '\n')
 				break;
 			if (line[i] == ' ')
@@ -88,31 +107,39 @@ static void initializeSym()
 			if (mod == 0)
 			{
 				if (i == 0)
-					symList.nodeArray[symList.length].address = 0;
-				symList.nodeArray[symList.length].address += calIndex(15 - i) * char2int(line[i]);
+					sym_list.node_array[sym_list.length].address = 0;
+				sym_list.node_array[sym_list.length].address += get_index(15 - i) * char2int(line[i]);
 			}
 			else if (mod == 1)
 			{
-				symList.nodeArray[symList.length].flag = line[i];
+				sym_list.node_array[sym_list.length].flag = line[i];
 			}
 			else
 			{
 				if (i == 19)
-					memset(symList.nodeArray[symList.length].name, 0, sizeof(symList.nodeArray[symList.length].name));
-				symList.nodeArray[symList.length].name[i - 19] = line[i];
+					memset(sym_list.node_array[sym_list.length].name, 0, sizeof(sym_list.node_array[sym_list.length].name));
+				sym_list.node_array[sym_list.length].name[i - 19] = line[i];
 			}
 		}
-		// printf("%#lx %c %s\n", symList.nodeArray[symList.length].address,symList.nodeArray[symList.length].flag,symList.nodeArray[symList.length].name);
-		++symList.length;
+		++sym_list.length;
 	}
 }
-static int searchKernelSymbol(unsigned long query)
+
+static int search_kernel_symbol(unsigned long query)
 {
-	int left = 0, right = symList.length;
+	/*
+		search_kernel_symbol uses binary search(lower bound version) to search for
+		kernel stack symbol.
+		input:
+			query: the address in kernel stack;
+		output: 
+			return the index in kernel symbol table.
+	*/
+	int left = 0, right = sym_list.length;
 	while (left < right)
 	{
 		int mid = (left + right) / 2;
-		if (symList.nodeArray[mid].address >= query)
+		if (sym_list.node_array[mid].address >= query)
 			right = mid;
 		else
 			left = mid + 1;
@@ -120,9 +147,18 @@ static int searchKernelSymbol(unsigned long query)
 	left = left > 0 ? --left : left;
 	return left;
 }
-static int searchUserFile(unsigned long query, struct RelaventFile* files, int fileCount)
+
+static int search_object_file(unsigned long query, struct object_file *files, int file_count)
 {
-	int left = 0, right = fileCount - 1;
+	/*
+		search_object_symbol uses binary search(lower bound version) to search for
+		user stack symbol.
+		input:
+			query: the address in user stack;
+		output: 
+			return the index in user symbol table.
+	*/
+	int left = 0, right = file_count - 1;
 	while (left < right)
 	{
 		int mid = (left + right) / 2;
@@ -134,102 +170,118 @@ static int searchUserFile(unsigned long query, struct RelaventFile* files, int f
 	left = left > 0 ? --left : left;
 	return left;
 }
-static int userstackNameSearch(unsigned long virtualAddr, const char* filePath, char* stackFunctionName)
-{
-    /*
-        userstackNameSearch is used to search for the symbol name of a specific
-        virtual address in user stack.
-        input:
-            virtualAddr: specific address of memory;
-            filePath: binary Path of the specific tmpAddr;
-            stackFunctionName: the return name of a stack;
-        output: return a int indicate whether is a successful search;
-            0: successful search;
-            1: failed;
-    */
-    FILE *fp;
-    unsigned long offset = 0, physicalAddr = 0, flag = 1, stackAddr = 0;
-    char cmd[NAMELIMIT];
-    memset(stackFunctionName, 0, sizeof(stackFunctionName));
-    /*
-        Reading offset
-    */
-    memset(cmd, 0, sizeof(cmd));
-    sprintf(cmd, "readelf -l %s | awk '$4==\"E\"{print x};{x=$2}'", filePath);
-    // printf("%s\n", cmd);
-    fp = popen(cmd, "r");
-    fscanf(fp, "%lx", &offset);
-    // printf("0x%lx\n", offset);
-    physicalAddr = virtualAddr + offset;
-    printf("0x%lx\n", physicalAddr);
-    pclose(fp);
-    /*
-        Reading function symbols
-    */
-    memset(cmd, 0, sizeof(cmd));
-    sprintf(cmd, "nm -n -D -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
-    printf("%s\n", cmd);
-    fp = popen(cmd, "r");
-    char tmpName[NAMELIMIT] = {0};
-    while (fscanf(fp, "%lx", &stackAddr) == 1)
-    {
-        // fscanf(fp, "%lx", &stackAddr);
-        if(physicalAddr < stackAddr)
-        {
-            flag = 0;
-            break;
-        }
-        fscanf(fp, "%s", tmpName);
-        offset = physicalAddr - stackAddr;
-        // if(!tmpName[0])
-        //     break;
-        // printf("%016x %s\n", stackAddr, tmpName);
-    }
-    if(!flag)
-    {
-        sprintf(stackFunctionName,"%s+0x%lx",tmpName,offset);
-        return flag;
-    }
-    // Looking for the stack in the dynamic Libs
-    memset(cmd, 0, sizeof(cmd));
-    sprintf(cmd, "nm -n -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", filePath);
-    printf("%s\n", cmd);
-    fp = popen(cmd, "r");
-    while (fscanf(fp, "%lx", &stackAddr) == 1)
-    {
-        // fscanf(fp, "%lx", &stackAddr);
-        if(physicalAddr < stackAddr)
-        {
-            flag = 0;
-            break;
-        }
-        fscanf(fp, "%s", tmpName);
-        offset = physicalAddr - stackAddr;
-        // if(!tmpName[0])
-        //     break;
-        // printf("%016x %s\n", stackAddr, tmpName);
-    }
-    if(!flag)
-        sprintf(stackFunctionName,"%s+0x%lx",tmpName,offset);
-    else
-        sprintf(stackFunctionName,"[No Function Name]");
-    return flag;
-}
-static void initializeSysInfo()
+
+static int get_user_func_name(unsigned long vaddr, const char *object_file_path, char *stack_func_name)
 {
 	/*
+		get_user_func_name is used to search for the symbol name of a specific
+		virtual address in user stack.
+		input:
+			vaddr: specific address of memory;
+			object_file_path: binary Path of the specific tmpAddr;
+			stack_func_name: the return function name of the virtual address;
+		output: return a int indicate whether is a successful search;
+			0: successful search;
+			1: failed;
+	*/
+	FILE *fp;
+	unsigned long offset = 0, paddr = 0, flag = 1, saddr = 0;
+	char cmd[NAMELIMIT];
+	int found_symbols = 0;
+	memset(stack_func_name, 0, sizeof(stack_func_name));
+	/*
+		Reading offset
+	*/
+	memset(cmd, 0, sizeof(cmd));
+	sprintf(cmd, "readelf -l %s | awk '$4==\"E\"{print x};{x=$2}'", object_file_path);
+	fp = popen(cmd, "r");
+	fscanf(fp, "%lx", &offset);
+	paddr = vaddr + offset;
+	pclose(fp);
+	/*
+		Reading function symbols
+	*/
+	memset(cmd, 0, sizeof(cmd));
+	sprintf(cmd, "nm -n -D -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", object_file_path);
+	fp = popen(cmd, "r");
+	char tmp_name[NAMELIMIT] = {0};
+	while (fscanf(fp, "%lx", &saddr) == 1)
+	{
+		found_symbols = 1;
+		if (paddr < saddr)
+		{
+			flag = 0;
+			break;
+		}
+		fscanf(fp, "%s", tmp_name);
+		offset = paddr - saddr;
+	}
+	if (!flag)
+	{
+		sprintf(stack_func_name, "%s+0x%lx", tmp_name, offset);
+		return flag;
+	}
+	if (found_symbols)
+	{
+		sprintf(stack_func_name, "[No Function Name]");
+		return flag;
+	}
+	// Looking for the stack in the dynamic Libs
+	memset(cmd, 0, sizeof(cmd));
+	sprintf(cmd, "nm -n -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", object_file_path);
+	fp = popen(cmd, "r");
+	while (fscanf(fp, "%lx", &saddr) == 1)
+	{
+		if (paddr < saddr)
+		{
+			flag = 0;
+			break;
+		}
+		fscanf(fp, "%s", tmp_name);
+		offset = paddr - saddr;
+	}
+	if (!flag)
+		sprintf(stack_func_name, "%s+0x%lx", tmp_name, offset);
+	else
+		sprintf(stack_func_name, "[No Function Name]");
+	return flag;
+}
+
+static void print_logo()
+{
+	/*
+		print_logo is used to print the welcome page with some basic information.
+	*/
+	FILE *fp;
+	fp = fopen("../src/logo/2.txt", "r");
+	while (1)
+	{
+		memset(sys_info_buf, 0, sizeof(sys_info_buf));
+		void *ptr = fgets(sys_info_buf, sizeof(sys_info_buf), fp);
+		if (ptr == NULL)
+			break;
+		printf("%s", sys_info_buf);
+	}
+	fclose(fp);
+}
+static void sysinfo_initialize()
+{
+	/*
+		sysinfo_initialize is used to print the static information
+		of the computer, like CPU info, Memory info, etc.
 		硬件信息脚本
 		https://blog.csdn.net/LvJzzZ/article/details/112029991
 	*/
+	print_logo();
 	FILE *fp;
 	fp = popen("bash ../src/hardware.sh", "r");
 	while (1)
 	{
-		memset(sysinfo_buffer, 0, sizeof(sysinfo_buffer));
-		void *ptr = fgets(sysinfo_buffer, sizeof(sysinfo_buffer), fp);
+		memset(sys_info_buf, 0, sizeof(sys_info_buf));
+		void *ptr = fgets(sys_info_buf, sizeof(sys_info_buf), fp);
 		if (ptr == NULL)
 			break;
-		printf("%s", sysinfo_buffer);
+		printf("%s", sys_info_buf);
 	}
 	pclose(fp);
 }
@@ -237,6 +289,10 @@ struct exitcatch_bpf *skel;
 
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {
+	/*
+		this function is used to set to enable and redirect the output of bpf_trace_printk to stderr when LIBBPF_DEBUG is set
+	*/
+
 	if (level == LIBBPF_DEBUG)
 		return 0;
 	return vfprintf(stderr, format, args);
@@ -244,15 +300,121 @@ static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va
 
 static volatile bool exiting = false;
 
+
 static void sig_handler(int sig)
 {
+	/*
+		handling signal to stop exitcatch process
+	*/
 	exiting = true;
 }
 
-static int handle_event(void *ctx, void *data, size_t data_sz)
+static void memory_calculate(unsigned long mem, char *buffer)
 {
-	struct RelaventFile* files;
-	int file_count=0;
+	/*
+		memory_calculate is used to calcalate the memory size 
+		and return it with correspondent size.
+	*/
+	if (mem < 1024)
+		sprintf(buffer, "%8.2fB", (float)mem);
+	else if (mem < 1024 * 1024)
+		sprintf(buffer, "%8.2fKB", (float)mem / 1024);
+	else
+		sprintf(buffer, "%8.2fMB", (float)mem / (1024 * 1024));
+}
+static void print_process_report(const struct event *e, FILE *fp)
+{
+	/*
+		print_process_report is used to print the info read by eBPF
+		function and organize it in readable format.
+		input:
+			e: the pointer points to the data read by eBPF function. 
+			fp: the file pointer points to the output log files.
+			stack_func_name: the return function name of the virtual address;
+		output: No return values.
+	*/
+
+	const long ns2us = 1000;
+
+	fprintf(fp, "\n========================Process's Brief Report===========================\n");
+	fprintf(fp, "Time Report\n");
+	// fprintf(fp, "-----------------------------Time Report---------------------------------\n" NONE);
+	fprintf(fp, "                    %-17s%-15s%-20s\n", "Current Process", "Subprocess", "Subprocess(On vCPU)");
+	fprintf(fp, "    %-16s%-17llu%-15llu%-20llu\n", "User Mode(us)", e->utime / ns2us, e->cutime / ns2us, e->gtime / ns2us);
+	fprintf(fp, "    %-16s%-17llu%-15llu%-20llu\n", "System Mode(us)", e->stime / ns2us, e->cstime / ns2us, e->cgtime / ns2us);
+	fprintf(fp, "Schedule Report\n");
+	// fprintf(fp, "---------------------------Schedule Report-------------------------------\n" NONE);
+	fprintf(fp, "    %-36s%10d\n", "Schedule Priority(Default)", e->prio - DEFAULT_PRIO); 
+	fprintf(fp, "    %-36s%10d\n", "Schedule Priority(Nice)", e->prio - MAX_RT_PRIO);	  
+	fprintf(fp, "    %-36s%10d\n", "Schedule Priority(Realtime)", e->rt_priority);		  
+	fprintf(fp, "    %-36s%10d\n", "Schedule Policy", e->policy);						  // done
+	fprintf(fp, "    %-36s%10d\n", "Threads Number", e->num_threads);					  
+	fprintf(fp, "    %-36s%10d\n", "CPU Number(Last Executed On)", e->cpu);				  
+	fprintf(fp, "    %-36s%10d\n", "Exit Signal(Report by waitpid())", e->exit_signal);	  
+	fprintf(fp, "Memory Report\n");
+	// fprintf(YELLOW "----------------------------Memory Report--------------------------------\n" NONE);
+	// char buffer[15] = {0};
+	// memory_calculate(e->mm_vsize, buffer);
+	// fprintf(fp,"    %-30s%15s\n","Virtual Memory Size", buffer);
+	fprintf(fp, "    %-36s%10.2f\n", "Virtual Memory Size(KB)", (float)e->mm_vsize * PAGE_SIZE / 1024);			   
+	fprintf(fp, "    %-36s%10.2f\n", "Resident Set Size(RSS/KB)", (float)e->mm_rss * PAGE_SIZE / 1024);			   
+	fprintf(fp, "    %-36s%10.2f\n", "Soft Limit Of Rss(KB)", (float)e->rsslim / 1024);							   
+	fprintf(fp, "    %-36s%10.2f\n", "Text Segement Size(KB)", (float)(e->mm_end_code - e->mm_start_code) / 1024); 
+	fprintf(fp, "    %-36s%10.2f\n", "BSS Segement Size(KB)", (float)(e->mm_end_data - e->mm_start_data) / 1024);  
+	fprintf(fp, "    %-36s%10.2f\n", "Text Segement Size(KB)", (float)(e->mm_end_code - e->mm_start_code) / 1024); 
+	fprintf(fp, "Page Fault Report\n");
+	fprintf(fp, "                    %-20s%-15s\n", "Current Process", "Subprocess");
+	fprintf(fp, "    %-16s%-20u%-15u\n", "Major Faults", e->maj_flt, e->cmaj_flt);
+	fprintf(fp, "    %-16s%-20u%-15u\n", "Minor Faults", e->min_flt, e->cmin_flt);
+
+	printf(PURPLE "\n========================Process's Brief Report===========================\n" NONE);
+	printf(YELLOW "Time Report\n" NONE);
+	// printf(YELLOW "-----------------------------Time Report---------------------------------\n" NONE);
+	printf("                    %-17s%-15s%-20s\n", "Current Process", "Subprocess", "Subprocess(On vCPU)");
+	printf("    %-16s%-17llu%-15llu%-20llu\n", "User Mode(us)", e->utime / ns2us, e->cutime / ns2us, e->gtime / ns2us);
+	printf("    %-16s%-17llu%-15llu%-20llu\n", "System Mode(us)", e->stime / ns2us, e->cstime / ns2us, e->cgtime / ns2us);
+	printf(YELLOW "Schedule Report\n" NONE);
+	// printf(YELLOW "---------------------------Schedule Report-------------------------------\n" NONE);
+	printf("    %-36s%10d\n", "Schedule Priority(Default)", e->prio - DEFAULT_PRIO); 
+	printf("    %-36s%10d\n", "Schedule Priority(Nice)", e->prio - MAX_RT_PRIO);	 
+	printf("    %-36s%10d\n", "Schedule Priority(Realtime)", e->rt_priority);		 
+	printf("    %-36s%10d\n", "Schedule Policy", e->policy);						 // done
+	printf("    %-36s%10d\n", "Threads Number", e->num_threads);					 
+	printf("    %-36s%10d\n", "CPU Number(Last Executed On)", e->cpu);				 
+	printf("    %-36s%10d\n", "Exit Signal(Report by waitpid())", e->exit_signal);	 
+	printf(YELLOW "Memory Report\n" NONE);
+	// printf(YELLOW "----------------------------Memory Report--------------------------------\n" NONE);
+	// char buffer[15] = {0};
+	// memory_calculate(e->mm_vsize, buffer);
+	// printf("    %-30s%15s\n","Virtual Memory Size", buffer);
+	printf("    %-36s%10.2f\n", "Virtual Memory Size(KB)", (float)e->mm_vsize * PAGE_SIZE / 1024);			  
+	printf("    %-36s%10.2f\n", "Resident Set Size(RSS/KB)", (float)e->mm_rss * PAGE_SIZE / 1024);			  
+	printf("    %-36s%10.2f\n", "Soft Limit Of Rss(KB)", (float)e->rsslim / 1024);							  
+	printf("    %-36s%10.2f\n", "Text Segement Size(KB)", (float)(e->mm_end_code - e->mm_start_code) / 1024); 
+	printf("    %-36s%10.2f\n", "BSS Segement Size(KB)", (float)(e->mm_end_data - e->mm_start_data) / 1024);  
+	printf("    %-36s%10.2f\n", "Text Segement Size(KB)", (float)(e->mm_end_code - e->mm_start_code) / 1024); 
+	printf(YELLOW "Page Fault Report\n" NONE);
+	printf("                    %-20s%-15s\n", "Current Process", "Subprocess");
+	printf("    %-16s%-20u%-15u\n", "Major Faults", e->maj_flt, e->cmaj_flt);
+	printf("    %-16s%-20u%-15u\n", "Minor Faults", e->min_flt, e->cmin_flt);
+}
+
+static int handle_event(void *ctx, void *data, size_t data_sz)
+{	
+	/*
+		handle_event is used to handle data delivered from the kernel
+		space to user space
+		
+		input:
+			ctx: the pointer points to task context 
+			data: the pointer  points to the data comes from ring_buffer
+			data_sz: size in byte of data.
+		output: return a int indicate whether is a successful handling;
+			0: successful handling;
+			1: failed;
+	*/
+	struct object_file *files;
+	int file_counts = 0;
 	const struct event *e = data;
 	struct tm *tm;
 	char ts[64];
@@ -280,9 +442,10 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	strcat(filename, "_");
 	strcat(filename, ts);
 	strcat(filename, ".log");
-	printf("%s\n", filename);
-	chdir(logpath);
 	FILE *fp = fopen(filename, "w");
+	fprintf(fp, "\n			  %s\n", filename);
+	printf(YELLOW "\n			  %s\n" NONE, filename);
+	chdir(log_path);
 	int ret = bpf_map__lookup_elem(
 		skel->maps.map_kernel_stack_traces,
 		&e->kernel_stack_id,
@@ -293,6 +456,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 
 	if (ret != 0)
 	{
+		fprintf(fp, "Error finding Kernel stack trace\n");
 		printf("Error finding Kernel stack trace\n");
 		return 0;
 	}
@@ -300,11 +464,16 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			"TIME", "COMM", "TID", "PID", "PPID", "EXIT CODE", "SIGNALS");
 	fprintf(fp, "%-14s %-16s %-7d %-7d %-7d %-9d %d\n",
 			ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
-	fprintf(fp, "Stack Trace:\n");
 	printf(HEAD "%-14s %-16s %-7s %-7s %-7s %-9s %s" NONE "\n",
 		   "TIME", "COMM", "TID", "PID", "PPID", "EXIT CODE", "SIGNALS");
 	printf(LIGHT_GREEN "%-14s" YELLOW " %-16s" NONE " %-7d %-7d %-7d" RED " %-9d %d\n" NONE,
 		   ts, e->comm, e->tid, e->pid, e->ppid, e->exit_code, e->sig);
+	// Print brief report to the process
+	print_process_report(e, fp);
+	// Trace and dependencies
+	fprintf(fp, "\n====================Stack Trace And Dependencies=========================\n");
+	printf(PURPLE "\n====================Stack Trace And Dependencies=========================\n" NONE);
+	fprintf(fp, "Kernel Stack Trace\n");
 	printf(YELLOW "Kernel Stack Trace:\n" NONE);
 	for (int i = 0; i < MAX_STACK_DEPTH; i++)
 	{
@@ -313,14 +482,12 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		{
 			break;
 		}
-		int index = searchKernelSymbol(stack);
-		fprintf(fp, "    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
-		printf("    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
-		// printf("    %#lx\n", stack);
+		int index = search_kernel_symbol(stack);
+		fprintf(fp, "    %#lx %s+%#lx\n", stack, sym_list.node_array[index].name, stack - sym_list.node_array[index].address);
+		printf("    %#lx %s+%#lx\n", stack, sym_list.node_array[index].name, stack - sym_list.node_array[index].address);
 	}
-	// printf("%lx\n",e->count);
 
-	//Get and print User stacktrace
+	// Get and print User stacktrace
 	ret = bpf_map__lookup_elem(
 		skel->maps.map_user_stack_traces,
 		&e->user_stack_id,
@@ -331,6 +498,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 
 	if (ret != 0)
 	{
+		fprintf(fp, "Error finding User stack trace\n");
 		printf("Error finding User stack trace\n");
 		return 0;
 	}
@@ -338,41 +506,44 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	const struct mmap_struct *curr;
 	// get relavent files count
 	int last_inode = -1;
-	for (int i = 0; i < e->count;i++){
+	for (int i = 0; i < e->count; i++)
+	{
 		curr = &(e->mmap[i]);
-		if((curr->flags & VM_EXEC) && curr->ino != last_inode){
-			last_inode = curr->ino;	
-			file_count++;
+		if ((curr->flags & VM_EXEC) && curr->ino != last_inode)
+		{
+			last_inode = curr->ino;
+			file_counts++;
 		}
 	}
 
-	// printf("files count :%d\n",file_count);
-
-	files = (struct RelaventFile*)malloc(sizeof(struct RelaventFile) * file_count);
+	files = (struct object_file *)malloc(sizeof(struct object_file) * file_counts);
 
 	last_inode = -1;
-	for (int i = 0,j = 0; i < e->count;i++){
+	for (int i = 0, j = 0; i < e->count; i++)
+	{
 		curr = &(e->mmap[i]);
-		if((curr->flags & VM_EXEC) && curr->ino != last_inode){
+		if ((curr->flags & VM_EXEC) && curr->ino != last_inode)
+		{
 			files[j].segment_end = curr->end;
 			files[j].segment_start = curr->start;
 			int index = 0;
-			for(int level = 0;level < MAX_LEVEL;level++){
+			for (int level = 0; level < MAX_LEVEL; level++)
+			{
 				if (curr->name[level][0] == '\0' || curr->name[level][0] == '/')
 				{
 					continue;
 				}
-				index += sprintf(files[j].exec_file_path + index,"/%s",curr->name[level]);
+				index += sprintf(files[j].exec_file_path + index, "/%s", curr->name[level]);
 			}
 			files[j].exec_file_path[index] = '\0';
-			// printf("%08lx-%08lx path:%s\n",files[j].segment_start,files[j].segment_end,files[j].exec_file_path);
-			last_inode = curr->ino;	
+			last_inode = curr->ino;
 			j++;
 		}
 	}
 
+	fprintf(fp, "User Stack Trace\n");
 	printf(YELLOW "User Stack Trace:\n" NONE);
-	char stackFunctionName[NAMELIMIT] = {0};
+	char stack_func_name[NAMELIMIT] = {0};
 	for (int i = 0; i < MAX_STACK_DEPTH; i++)
 	{
 		stack = stacks[i];
@@ -380,22 +551,23 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		{
 			break;
 		}
-		int index = searchUserFile(stack,files,file_count);
-		int searchResult = userstackNameSearch(stack - files[index].segment_start, (const char*)files[index].exec_file_path, stackFunctionName);
-		// fprintf(fp, "    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
-		// printf("    %#lx %s+%#lx\n", stack, symList.nodeArray[index].name, stack - symList.nodeArray[index].address);
-		// printf("    %#lx\n", stack);
-		fprintf(fp, "    %#lx %s\n", stack, stackFunctionName);
-		printf("    %#lx %s\n", stack, stackFunctionName);
+		int index = search_object_file(stack, files, file_counts);
+		// printf("   ");
+		get_user_func_name(stack - files[index].segment_start, (const char *)files[index].exec_file_path, stack_func_name);
+		fprintf(fp, "    0x%016lx %s\n", stack, stack_func_name);
+		printf("    0x%016lx %s\n", stack, stack_func_name);
 	}
 
-
-	printf(YELLOW "[Dependencies] Dynamic Libs:" NONE "\n");
 	fprintf(fp, "[Dependencies] Dynamic Libs:\n");
+	printf(YELLOW "[Dependencies] Dynamic Libs:" NONE "\n");
 	for (int i = 0; i < e->count; i++)
 	{
 		curr = &(e->mmap[i]);
-		fprintf(fp, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
+		if (!(curr->flags & VM_EXEC))
+		{
+			continue;
+		}
+		fprintf(fp, "    0x%016lx-0x%016lx %c%c%c%c %08llx %02x:%02x %lu ",
 				curr->start,
 				curr->end,
 				curr->flags & VM_READ ? 'r' : '-',
@@ -404,7 +576,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 				curr->flags & VM_MAYSHARE ? 's' : 'p',
 				curr->pgoff,
 				MAJOR(curr->dev), MINOR(curr->dev), curr->ino);
-		printf("%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu ",
+		printf("    0x%016lx-0x%016lx %c%c%c%c %08llx %02x:%02x %lu ",
 			   curr->start,
 			   curr->end,
 			   curr->flags & VM_READ ? 'r' : '-',
@@ -423,11 +595,11 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			printf("/%s", curr->name[i]);
 		}
 
-		// printf("Hello World");
 		fprintf(fp, "\n");
 		printf("\n");
 	}
 	fprintf(fp, "\n");
+	printf("\n");
 	fclose(fp);
 	free(files);
 	return 0;
@@ -435,8 +607,11 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 
 int main(int argc, char **argv)
 {
-	initializeSysInfo();
-	initializeSym();
+	/*
+		THe main function.
+	*/
+	sysinfo_initialize();
+	sym_initialize();
 
 	printf(YELLOW ">>>>>>>Finished initializing...\n" NONE);
 	// sudo mount -t debugfs none /sys/kernel/debug
@@ -450,9 +625,9 @@ int main(int argc, char **argv)
 	}
 
 	if (argc == 2)
-		strcpy(logpath, argv[1]);
+		strcpy(log_path, argv[1]);
 
-	printf(BLUE "Log will be saved in: %s" NONE "\n", logpath);
+	printf(BLUE "Log will be saved in: %s" NONE "\n", log_path);
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 	/* Set up libbpf errors and debug info callback */
 	libbpf_set_print(libbpf_print_fn);
@@ -487,18 +662,18 @@ int main(int argc, char **argv)
 	}
 
 	/* Set up ring buffer polling */
-	
+
 	//
-	mkdir(logpath, S_IRWXU);
-	chdir(logpath);
+	mkdir(log_path, S_IRWXU);
+	chdir(log_path);
 	//
 	rb = ring_buffer__new(bpf_map__fd(skel->maps.rb), handle_event, NULL, NULL);
-		if (!rb)
-		{
-			err = -1;
-			fprintf(stderr, "Failed to create ring buffer\n");
-			goto cleanup;
-		}
+	if (!rb)
+	{
+		err = -1;
+		fprintf(stderr, "Failed to create ring buffer\n");
+		goto cleanup;
+	}
 	/* Process events */
 
 	while (!exiting)

@@ -1,16 +1,41 @@
 #ifndef EXITCATCH_H
 #define EXITCATCH_H
 
-#define MAX_STACK_DEPTH 20
+#define MAX_STACK_DEPTH 20	//parameter for BPF_MAP_TYPE_STACK_TRACE
 #define TASK_COMM_LEN 16
 #define VALUESIZE  MAX_STACK_DEPTH * sizeof(size_t)
 
 
 // should get from kernel header ?
-#define MAX_VMA_ENTRY 30 
+// #define MAX_VMA_ENTRY 51
+#define MAX_VMA_ENTRY 50 //max dynamic lib searching level
 #define MAXLEN_VMA_NAME 64
-#define MAX_LEVEL 7
-#define PAGE_SHIFT 13 //8KB differs from kernels
+#define MAX_LEVEL 8
+
+/*
+
+the macro below are all default configuration in linux kernel for x86_64
+
+*/
+
+#define PAGE_SHIFT 12 //
+#define PAGE_SIZE (1<<PAGE_SHIFT)
+#define TOP_OF_KERNEL_STACK_PADDING 0
+#define KASAN_STACK_ORDER 0
+
+#define THREAD_SIZE (PAGE_SIZE<<2)
+//from /include/linux/sched/prio.h
+#define MAX_NICE	19
+#define MIN_NICE	-20
+#define NICE_WIDTH	(MAX_NICE - MIN_NICE + 1)
+
+#define MAX_USER_RT_PRIO	100
+#define MAX_RT_PRIO		MAX_USER_RT_PRIO
+#define MAX_PRIO		(MAX_RT_PRIO + NICE_WIDTH)
+#define DEFAULT_PRIO		(MAX_RT_PRIO + NICE_WIDTH / 2)
+//from /include/linux/kdev_t.h
+#define MKDEV(ma,mi)	(((ma) << MINORBITS) | (mi))
+
 //from /include/linux/kdev.h
 #define MAJOR(dev)	((dev)>>8)
 #define MINOR(dev)	((dev) & 0xff)
@@ -27,41 +52,80 @@
 #define VM_MAYEXEC	0x00000040
 #define VM_MAYSHARE	0x00000080
 
+
+//rom /linux/include/uapi/asm-generic/resource.h
+#ifndef RLIMIT_RSS
+# define RLIMIT_RSS		5	/* max resident set size */
+#endif
+
 struct mmap_struct{
-	unsigned long start;
-	unsigned long end;
-	unsigned long flags;
-	unsigned long long pgoff;
-	unsigned long ino;
-	dev_t dev;
-	char name[MAX_LEVEL][MAXLEN_VMA_NAME+1];
+	unsigned long start; //segment start address
+	unsigned long end;	//segment end address
+	unsigned long flags;	//segement rwx
+	unsigned long long pgoff;	//page offset
+	unsigned long ino;	//inode number
+	dev_t dev;			//device num
+	char name[MAX_LEVEL][MAXLEN_VMA_NAME+1];	//abslote object file path
 };
 
-struct event{
+
+//check handle_event() in exitcatch.c for concrete description
+struct event{ 
+		unsigned long kernel_stack_id; //key to access kernel stack map
+		unsigned long user_stack_id;	//kep to access user stack map
+		unsigned long count;			//mmap count
+		struct mmap_struct mmap[MAX_VMA_ENTRY]; //get mmap from kernel space
+		int sig;						//signal resulting crash
+		int exit_code;					
+
 		pid_t pid;
 		pid_t tid;
-		pid_t ppid;
-		int sig;
-		int exit_code;
-		char comm[TASK_COMM_LEN];
-		unsigned long kernel_stack_id;
-		unsigned long user_stack_id;
-		unsigned long count;
-		struct mmap_struct mmap[MAX_VMA_ENTRY];
-		
-		//sched
-		unsigned int policy;
-		int prio;
-		int static_prio;
-		int normal_prio;
-		unsigned int rt_priority;
+		char comm[TASK_COMM_LEN];// task name
 
-		//time and clock
-		unsigned long long utime;
+		pid_t ppid;
+
+		unsigned int flags; 
+		
+		
+		unsigned min_flt,maj_flt; 
+		unsigned cmin_flt,cmaj_flt;
+
+		unsigned long long cutime; 
+		unsigned long long cstime;
 		unsigned long long stime;
-		unsigned long long gtime;
-		unsigned long long start_time;
-		unsigned long long start_boottime;
+		unsigned long long utime;
+		unsigned long long cgtime; 
+		unsigned long long gtime; 
+
+		int prio; //task->prio - MAX_RT_PRIO  
+		int nice; // prio  - DEFAULT_PRIO
+		int num_threads; //task->signal->nr_threads;
+		unsigned long long start_time; //
+
+		unsigned long mm_vsize; //
+		unsigned long mm_rss;	//mm_rss
+	    unsigned long rsslim; //
+		unsigned long mm_start_code; //
+		unsigned long mm_end_code; //
+		unsigned long mm_start_stack; //
+		unsigned long esp; //
+		unsigned long eip; //
+
+		int exit_signal;  
+		unsigned int cpu;
+		unsigned int rt_priority;
+		unsigned int policy;
+
+		unsigned long mm_start_data;
+		unsigned long mm_end_data;
+		unsigned long mm_start_brk;
+		unsigned long mm_arg_start;
+		unsigned long mm_arg_end;
+		unsigned long mm_env_start;
+		unsigned long mm_env_end;
+
+
+		
 };
 
 
