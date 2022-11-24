@@ -88,14 +88,11 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 		e->ppid = BPF_CORE_READ(task, parent, pid);
 		e->policy = BPF_CORE_READ(task, policy);
 		e->prio = BPF_CORE_READ(task, prio);
-		e->static_prio = BPF_CORE_READ(task, static_prio);
-		e->normal_prio = BPF_CORE_READ(task, normal_prio);
 		e->rt_priority = BPF_CORE_READ(task, rt_priority);
 		e->utime = BPF_CORE_READ(task, utime);
 		e->stime = BPF_CORE_READ(task, stime);
 		e->gtime = BPF_CORE_READ(task, gtime);
 		e->start_time = BPF_CORE_READ(task, start_time);
-		e->start_boottime = BPF_CORE_READ(task, start_boottime);
 		bpf_get_current_comm(&(e->comm), TASK_COMM_LEN);
 
 		e->flags = BPF_CORE_READ(task, flags);

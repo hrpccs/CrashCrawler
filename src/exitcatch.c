@@ -432,7 +432,6 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	printf("%lf\n",(double)e->stime / clockticks);
 	printf("%ld\n",e->gtime / clockticks);
 	printf("%ld\n",e->start_time);
-	printf("%ld\n",e->start_boottime);
 	
 	// printf("user cpu time is: %lfs\n",(double)e->utime / clockticks);
 	// printf("system cpu time is: %lfs\n",(double)e->stime / clockticks);
