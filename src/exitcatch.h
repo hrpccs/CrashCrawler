@@ -8,7 +8,7 @@
 
 // should get from kernel header ?
 // #define MAX_VMA_ENTRY 51
-#define MAX_VMA_ENTRY 50 //max dynamic lib searching level
+#define MAX_VMA_ENTRY 47 //max dynamic lib searching level
 #define MAXLEN_VMA_NAME 64
 #define MAX_LEVEL 8
 
@@ -124,7 +124,7 @@ struct event{
 		unsigned long mm_env_start;
 		unsigned long mm_env_end;
 
-
+		unsigned long long process_time_ns;
 		
 };
 

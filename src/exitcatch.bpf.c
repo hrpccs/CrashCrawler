@@ -60,6 +60,9 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 	struct file *file;
 	struct path filepath;
 	struct event *e;
+	
+	// Compute the process time for a specific catch
+	u64 t_start = bpf_ktime_get_ns();
 
 	if (exitcode == 0 || exitcode >> 8 != 0)
 	{ // exit normally
@@ -122,7 +125,8 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 		e->mm_start_stack = BPF_CORE_READ(mm, start_stack);
 		
 		e->exit_signal = BPF_CORE_READ(task, exit_signal);
-		e->cpu = BPF_CORE_READ(task, cpu);
+		// e->cpu = BPF_CORE_READ(task, cpu);
+		e->cpu = 0;
 		e->rt_priority = BPF_CORE_READ(task, rt_priority);
 		e->policy = BPF_CORE_READ(task, policy);
 
@@ -192,9 +196,10 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 			}
 		}
 		e->count = count;
+		u64 t_end = bpf_ktime_get_ns();
+		e->process_time_ns = t_end - t_start;
 		bpf_ringbuf_submit(e, 0);
 	}
-
 	return 0;
 }
 char _license[] SEC("license") = "GPL";

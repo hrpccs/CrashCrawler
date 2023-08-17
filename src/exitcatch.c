@@ -597,6 +597,8 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		fprintf(fp, "\n");
 		printf("\n");
 	}
+	fprintf(fp, "Kernel program time expense for BPF: %llu\n", e->process_time_ns);
+	printf(YELLOW "Kernel program time expense for BPF: %llu\n" NONE, e->process_time_ns);
 	fprintf(fp, "\n");
 	printf("\n");
 	fclose(fp);
