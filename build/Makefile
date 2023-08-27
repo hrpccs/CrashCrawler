@@ -22,13 +22,13 @@ endif
 .DEBFAULT: build
 
 build:$(LIBBPF_OBJ) $(SRCDIR)/vmlinux.h $(LIBBPF_OBJ)
-	clang $(CFLAGS) -target bpf -D__TARGET_ARCH_x86 $(INCLUDE_PATH) -c $(SRC_TARGET).bpf.c -o $(target).bpf.o 
+	clang $(CFLAGS) -target bpf -D__TARGET_ARCH_arm64 $(INCLUDE_PATH) -c $(SRC_TARGET).bpf.c -o $(target).bpf.o 
 	$(bpftool) gen skeleton  $(target).bpf.o > $(SRC_TARGET).skel.h
 	clang $(CFLAGS) -Wall $(INCLUDE_PATH) -c $(SRC_TARGET).c -o $(target).o
 	clang -Wall $(CFLAGS) $(target).o -static $(LIBBPF_OBJ) -lelf -lz -o $(target).bin
 
 coredump:$(LIBBPF_OBJ) $(SRCDIR)/vmlinux.h $(LIBBPF_OBJ)
-	clang $(CFLAGS) -target bpf -D__TARGET_ARCH_x86 $(INCLUDE_PATH) -c $(CORE_DUMP_DIR)/$(latency_target).bpf.c -o $(latency_target).bpf.o 
+	clang $(CFLAGS) -target bpf -D__TARGET_ARCH_arm64 $(INCLUDE_PATH) -c $(CORE_DUMP_DIR)/$(latency_target).bpf.c -o $(latency_target).bpf.o 
 	$(bpftool) gen skeleton  $(latency_target).bpf.o > $(CORE_DUMP_DIR)/$(latency_target).skel.h
 	clang $(CFLAGS) -Wall $(INCLUDE_PATH) -c $(CORE_DUMP_DIR)/$(latency_target).c -o $(latency_target).o
 	clang -Wall $(CFLAGS) $(latency_target).o -static $(LIBBPF_OBJ) -lelf -lz -o $(latency_target).bin
