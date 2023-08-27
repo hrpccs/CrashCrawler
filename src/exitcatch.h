@@ -78,11 +78,11 @@ struct event{
 		int sig;						//signal resulting crash
 		int exit_code;					
 
-		pid_t pid;
-		pid_t tid;
+		int pid;
+		int tid;
 		char comm[TASK_COMM_LEN];// task name
 
-		pid_t ppid;
+		int ppid;
 
 		unsigned int flags; 
 		

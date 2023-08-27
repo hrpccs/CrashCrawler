@@ -10,7 +10,7 @@
 // Use a ringbuffer Map to send data down to userspace
 struct {
   __uint(type, BPF_MAP_TYPE_RINGBUF);
-  __uint(max_entries, 1 << 15);
+  __uint(max_entries, 64 * sizeof(struct event));
 } rb SEC(".maps");
 
 // Use to store kernel stacktrace and will be used by bpf_get_stackid()
@@ -169,7 +169,7 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
         // MAXLEN_VMA_NAME = 2^n;
         for (int k = MAX_LEVEL - 1; k >= 0; k--)
 					{
-          bpf_probe_read_kernel_str(&(e->mmap[count].name[k][0]), (dname.len + 5) & (MAXLEN_VMA_NAME - 1), dname.name - 4); // weak ptr offset
+          bpf_probe_read_kernel_str(&(e->mmap[count].name[k][4]), (dname.len + 5) & (MAXLEN_VMA_NAME - 1), dname.name); // weak ptr offset
           dentry = BPF_CORE_READ(dentry, d_parent);
           dname = BPF_CORE_READ(dentry, d_name);
         }
