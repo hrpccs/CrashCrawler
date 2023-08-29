@@ -437,10 +437,13 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	// printf("system cpu time is: %lfs\n",(double)e->stime / clockticks);
 
 	char filename[NAMELIMIT] = {0};
-	strcpy(filename, e->comm);
-	strcat(filename, "_");
-	strcat(filename, ts);
-	strcat(filename, ".log");
+	// strcpy(filename, e->comm);
+	// strcat(filename, "_");
+	// strcat(filename, ts);
+	// strcat(filename, "_");
+	// strcat(filename, "%7d", e->tid);
+	snprintf(filename, NAMELIMIT, "%s_%s_%d.log", e->comm, ts, e->tid);
+	// strcat(filename, ".log");
 	FILE *fp = fopen(filename, "w");
 	fprintf(fp, "\n			  %s\n", filename);
 	printf(YELLOW "\n			  %s\n" NONE, filename);
