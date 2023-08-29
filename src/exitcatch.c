@@ -338,12 +338,10 @@ static void print_process_report(const struct event *e, FILE *fp)
 
 	fprintf(fp, "\n========================Process's Brief Report===========================\n");
 	fprintf(fp, "Time Report\n");
-	// fprintf(fp, "-----------------------------Time Report---------------------------------\n" NONE);
 	fprintf(fp, "                    %-17s%-15s%-20s\n", "Current Process", "Subprocess", "Subprocess(On vCPU)");
 	fprintf(fp, "    %-16s%-17llu%-15llu%-20llu\n", "User Mode(us)", e->utime / ns2us, e->cutime / ns2us, e->gtime / ns2us);
 	fprintf(fp, "    %-16s%-17llu%-15llu%-20llu\n", "System Mode(us)", e->stime / ns2us, e->cstime / ns2us, e->cgtime / ns2us);
 	fprintf(fp, "Schedule Report\n");
-	// fprintf(fp, "---------------------------Schedule Report-------------------------------\n" NONE);
 	fprintf(fp, "    %-36s%10d\n", "Schedule Priority(Default)", e->prio - DEFAULT_PRIO); 
 	fprintf(fp, "    %-36s%10d\n", "Schedule Priority(Nice)", e->prio - MAX_RT_PRIO);	  
 	fprintf(fp, "    %-36s%10d\n", "Schedule Priority(Realtime)", e->rt_priority);		  
@@ -352,10 +350,6 @@ static void print_process_report(const struct event *e, FILE *fp)
 	fprintf(fp, "    %-36s%10d\n", "CPU Number(Last Executed On)", e->cpu);				  
 	fprintf(fp, "    %-36s%10d\n", "Exit Signal(Report by waitpid())", e->exit_signal);	  
 	fprintf(fp, "Memory Report\n");
-	// fprintf(YELLOW "----------------------------Memory Report--------------------------------\n" NONE);
-	// char buffer[15] = {0};
-	// memory_calculate(e->mm_vsize, buffer);
-	// fprintf(fp,"    %-30s%15s\n","Virtual Memory Size", buffer);
 	fprintf(fp, "    %-36s%10.2f\n", "Virtual Memory Size(KB)", (float)e->mm_vsize * PAGE_SIZE / 1024);			   
 	fprintf(fp, "    %-36s%10.2f\n", "Resident Set Size(RSS/KB)", (float)e->mm_rss * PAGE_SIZE / 1024);			   
 	fprintf(fp, "    %-36s%10.2f\n", "Soft Limit Of Rss(KB)", (float)e->rsslim / 1024);							   
@@ -369,12 +363,10 @@ static void print_process_report(const struct event *e, FILE *fp)
 
 	printf(PURPLE "\n========================Process's Brief Report===========================\n" NONE);
 	printf(YELLOW "Time Report\n" NONE);
-	// printf(YELLOW "-----------------------------Time Report---------------------------------\n" NONE);
 	printf("                    %-17s%-15s%-20s\n", "Current Process", "Subprocess", "Subprocess(On vCPU)");
 	printf("    %-16s%-17llu%-15llu%-20llu\n", "User Mode(us)", e->utime / ns2us, e->cutime / ns2us, e->gtime / ns2us);
 	printf("    %-16s%-17llu%-15llu%-20llu\n", "System Mode(us)", e->stime / ns2us, e->cstime / ns2us, e->cgtime / ns2us);
 	printf(YELLOW "Schedule Report\n" NONE);
-	// printf(YELLOW "---------------------------Schedule Report-------------------------------\n" NONE);
 	printf("    %-36s%10d\n", "Schedule Priority(Default)", e->prio - DEFAULT_PRIO); 
 	printf("    %-36s%10d\n", "Schedule Priority(Nice)", e->prio - MAX_RT_PRIO);	 
 	printf("    %-36s%10d\n", "Schedule Priority(Realtime)", e->rt_priority);		 
@@ -383,10 +375,6 @@ static void print_process_report(const struct event *e, FILE *fp)
 	printf("    %-36s%10d\n", "CPU Number(Last Executed On)", e->cpu);				 
 	printf("    %-36s%10d\n", "Exit Signal(Report by waitpid())", e->exit_signal);	 
 	printf(YELLOW "Memory Report\n" NONE);
-	// printf(YELLOW "----------------------------Memory Report--------------------------------\n" NONE);
-	// char buffer[15] = {0};
-	// memory_calculate(e->mm_vsize, buffer);
-	// printf("    %-30s%15s\n","Virtual Memory Size", buffer);
 	printf("    %-36s%10.2f\n", "Virtual Memory Size(KB)", (float)e->mm_vsize * PAGE_SIZE / 1024);			  
 	printf("    %-36s%10.2f\n", "Resident Set Size(RSS/KB)", (float)e->mm_rss * PAGE_SIZE / 1024);			  
 	printf("    %-36s%10.2f\n", "Soft Limit Of Rss(KB)", (float)e->rsslim / 1024);							  
@@ -433,17 +421,8 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	printf("%ld\n",e->gtime / clockticks);
 	printf("%ld\n",e->start_time);
 	
-	// printf("user cpu time is: %lfs\n",(double)e->utime / clockticks);
-	// printf("system cpu time is: %lfs\n",(double)e->stime / clockticks);
-
 	char filename[NAMELIMIT] = {0};
-	// strcpy(filename, e->comm);
-	// strcat(filename, "_");
-	// strcat(filename, ts);
-	// strcat(filename, "_");
-	// strcat(filename, "%7d", e->tid);
 	snprintf(filename, NAMELIMIT, "%s_%s_%d.log", e->comm, ts, e->tid);
-	// strcat(filename, ".log");
 	FILE *fp = fopen(filename, "w");
 	fprintf(fp, "\n			  %s\n", filename);
 	printf(YELLOW "\n			  %s\n" NONE, filename);
@@ -554,7 +533,6 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			break;
 		}
 		int index = search_object_file(stack, files, file_counts);
-		// printf("   ");
 		get_user_func_name(stack - files[index].segment_start, (const char *)files[index].exec_file_path, stack_func_name);
 		fprintf(fp, "    0x%016lx %s\n", stack, stack_func_name);
 		printf("    0x%016lx %s\n", stack, stack_func_name);
