@@ -14,6 +14,24 @@ HEADER_DIR := /../src/libbpf/usr/include
 
 DEBUG ?= 
 
+# Dynamic Adjusting Arch-flags
+UNAME_S := $(shell uname -s)
+
+ifeq ($(UNAME_S),Linux)
+    UNAME_P := $(shell uname -p)
+    ifeq ($(UNAME_P),x86_64)
+        # x86_64
+        TARGET_ARCH := -D__TARGET_ARCH_x86_64
+    endif
+    ifeq ($(UNAME_P),arm)
+        # arm
+        TARGET_ARCH := -D__TARGET_ARCH_arm
+    endif
+    ifeq ($(UNAME_P),aarch64)
+        # arm64
+        TARGET_ARCH := -D__TARGET_ARCH_arm64
+    endif
+endif
 
 ifdef DEBUG
 	CFLAGS += -D DEBUG
@@ -22,13 +40,13 @@ endif
 .DEBFAULT: build
 
 build:$(LIBBPF_OBJ) $(SRCDIR)/vmlinux.h $(LIBBPF_OBJ)
-	clang $(CFLAGS) -target bpf -D__TARGET_ARCH_arm64 $(INCLUDE_PATH) -c $(SRC_TARGET).bpf.c -o $(target).bpf.o 
+	clang $(CFLAGS) -target bpf $(TARGET_ARCH) $(INCLUDE_PATH) -c $(SRC_TARGET).bpf.c -o $(target).bpf.o 
 	$(bpftool) gen skeleton  $(target).bpf.o > $(SRC_TARGET).skel.h
 	clang $(CFLAGS) -Wall $(INCLUDE_PATH) -c $(SRC_TARGET).c -o $(target).o
 	clang -Wall $(CFLAGS) $(target).o -static $(LIBBPF_OBJ) -lelf -lz -o $(target).bin
 
 coredump:$(LIBBPF_OBJ) $(SRCDIR)/vmlinux.h $(LIBBPF_OBJ)
-	clang $(CFLAGS) -target bpf -D__TARGET_ARCH_arm64 $(INCLUDE_PATH) -c $(CORE_DUMP_DIR)/$(latency_target).bpf.c -o $(latency_target).bpf.o 
+	clang $(CFLAGS) -target bpf $(TARGET_ARCH) $(INCLUDE_PATH) -c $(CORE_DUMP_DIR)/$(latency_target).bpf.c -o $(latency_target).bpf.o 
 	$(bpftool) gen skeleton  $(latency_target).bpf.o > $(CORE_DUMP_DIR)/$(latency_target).skel.h
 	clang $(CFLAGS) -Wall $(INCLUDE_PATH) -c $(CORE_DUMP_DIR)/$(latency_target).c -o $(latency_target).o
 	clang -Wall $(CFLAGS) $(latency_target).o -static $(LIBBPF_OBJ) -lelf -lz -o $(latency_target).bin
