@@ -21,7 +21,7 @@ ifeq ($(UNAME_S),Linux)
     UNAME_P := $(shell uname -p)
     ifeq ($(UNAME_P),x86_64)
         # x86_64
-        TARGET_ARCH := -D__TARGET_ARCH_x86_64
+        TARGET_ARCH := -D__TARGET_ARCH_x86
     endif
     ifeq ($(UNAME_P),arm)
         # arm
