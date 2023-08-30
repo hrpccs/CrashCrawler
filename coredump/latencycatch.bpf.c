@@ -13,16 +13,16 @@ struct {
   __type(value, long long);
 } enter_time SEC(".maps");
 
-SEC("fentry/do_coredump")
-int BPF_PROG(enter) {
+SEC("kprobe/do_coredump")
+int BPF_KPROBE(enter) {
   long long t = bpf_ktime_get_ns();
   int pid = bpf_get_current_pid_tgid();
   bpf_map_update_elem(&enter_time, &pid, &t, BPF_ANY);
   return 0;
 }
 
-SEC("fexit/do_coredump")
-int BPF_PROG(exit1) {
+SEC("kretprobe/do_coredump")
+int BPF_KRETPROBE(exit1) {
   int pid = bpf_get_current_pid_tgid();
   long long *t = bpf_map_lookup_elem(&enter_time, &pid);
   if (t) {
