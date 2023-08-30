@@ -241,11 +241,11 @@ static int get_user_func_name(unsigned long vaddr, const char *object_file_path,
 		fscanf(fp, "%s", tmp_name);
 		offset = paddr - saddr;
 	}
-	pclose(fp);
 	if (!flag)
 		sprintf(stack_func_name, "%s+0x%lx", tmp_name, offset);
 	else
 		sprintf(stack_func_name, "[No Function Name]");
+	pclose(fp);
 	return flag;
 }
 

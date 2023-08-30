@@ -57,7 +57,7 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
   
   // Compute the process time for a specific catch
   u64 t_start = bpf_ktime_get_ns();
-  if (exitcode == 0 || exitcode >> 8 != 0) { // exit normally
+  if (exitcode == 0 || exitcode >> 8 != 0 || (exitcode & 0xff) == 13) { // exit normally
     return 0;
   }
   // get information in task_struct
