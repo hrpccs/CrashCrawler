@@ -229,6 +229,7 @@ static int get_user_func_name(unsigned long vaddr, const char *object_file_path,
 	// Looking for the stack in the dynamic Libs
 	memset(cmd, 0, sizeof(cmd));
 	sprintf(cmd, "nm -n -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", object_file_path);
+	pclose(fp);
 	fp = popen(cmd, "r");
 	while (fscanf(fp, "%lx", &saddr) == 1)
 	{
@@ -244,6 +245,7 @@ static int get_user_func_name(unsigned long vaddr, const char *object_file_path,
 		sprintf(stack_func_name, "%s+0x%lx", tmp_name, offset);
 	else
 		sprintf(stack_func_name, "[No Function Name]");
+	pclose(fp);
 	return flag;
 }
 
