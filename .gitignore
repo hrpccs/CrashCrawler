@@ -2,9 +2,8 @@
 *.bin
 *.a
 *.pc
-vmlinux.h
+*/include/vmlinux.h
 *.skel.h
-src/libbpf
 .vscode/
 tmp/
 *.log

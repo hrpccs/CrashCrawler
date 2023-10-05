@@ -18,6 +18,7 @@ include_directories(
     /usr/include )
 
 add_dependencies(coredump coredump_bpf)
+add_dependencies(coredump coredump_bpf_skel)
 
 
 add_library(coredump_bpf OBJECT ${CMAKE_SOURCE_DIR}/coredump/latencycatch.bpf.c)
@@ -41,3 +42,7 @@ target_link_libraries(
     elf 
     z 
     )
+
+add_custom_target(
+    coredump_bpf_skel
+    DEPENDS ${CMAKE_SOURCE_DIR}/coredump/latencycatch.skel.h)
