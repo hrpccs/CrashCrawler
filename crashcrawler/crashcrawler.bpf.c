@@ -1,6 +1,6 @@
 // #define BPF_NO_PRESERVE_ACCESS_INDEX
 #include "vmlinux.h"
-#include "exitcatch.h"
+#include "crashcrawler.h"
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
@@ -139,7 +139,6 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
     int count = 0;
 #pragma unroll
 
-    //
     for (int i = 0; i < MAX_VMA_ENTRY; i++)
 		{
       // if (vma) //a trick: no nullptr check will not result in segment fault crash in BPF code
@@ -161,17 +160,19 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
         e->mmap[count].start = BPF_CORE_READ(vma, vm_start);
         e->mmap[count].end = BPF_CORE_READ(vma, vm_end);
         e->mmap[count].flags = BPF_CORE_READ(vma, vm_flags);
-        filepath = BPF_CORE_READ(file, f_path);
-        struct dentry *dentry = filepath.dentry;
-        struct qstr dname = BPF_CORE_READ(dentry, d_name);
+        {
+          filepath = BPF_CORE_READ(file, f_path);
+          struct dentry *dentry = filepath.dentry;
+          struct qstr dname = BPF_CORE_READ(dentry, d_name);
 
-        // read abs path of share lib , inspired by d_path() kernel function
-        // MAXLEN_VMA_NAME = 2^n;
-        for (int k = MAX_LEVEL - 1; k >= 0; k--)
-					{
-          bpf_probe_read_kernel_str(&(e->mmap[count].name[k][4]), (dname.len + 5) & (MAXLEN_VMA_NAME - 1), dname.name); // weak ptr offset
-          dentry = BPF_CORE_READ(dentry, d_parent);
-          dname = BPF_CORE_READ(dentry, d_name);
+          // read abs path of share lib , inspired by d_path() kernel function
+          // MAXLEN_VMA_NAME = 2^n;
+          for (int k = MAX_LEVEL - 1; k >= 0; k--)
+					  {
+            bpf_probe_read_kernel_str(&(e->mmap[count].name[k][4]), (dname.len + 5) & (MAXLEN_VMA_NAME - 1), dname.name); // weak ptr offset
+            dentry = BPF_CORE_READ(dentry, d_parent);
+            dname = BPF_CORE_READ(dentry, d_name);
+          }
         }
         count++;
         if(BPF_CORE_READ(vma,vm_flags) & VM_EXEC){

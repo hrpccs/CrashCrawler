@@ -3,6 +3,7 @@
 
 #include <argp.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -13,8 +14,8 @@
 #include <sys/resource.h>
 #include <sys/mount.h>
 #include <bpf/libbpf.h>
-#include "exitcatch.h"
-#include "exitcatch.skel.h"
+#include "crashcrawler.h"
+#include "crashcrawler.skel.h"
 #include "color.h"
 #define NAMELIMIT 100
 #define MAXLEN_PATH 100
@@ -51,6 +52,54 @@ struct object_file
 	unsigned long segment_end;
 };
 struct symbol_list sym_list;
+
+struct devt2path{
+	uint32_t devt;
+	char devpath[MAXLEN_PATH];
+};
+
+struct devpath_table{
+	struct devt2path table[LISTLIMT];
+	int length;
+};
+
+struct devpath_table dev_table;
+
+int dev_table_init(){
+	// parse the output of lsblk
+	FILE *fp;
+	fp = popen("lsblk -l -o NAME,MAJ:MIN", "r");
+	char tmp_name[NAMELIMIT] = {0};
+	char tmp_path[MAXLEN_PATH] = {0};
+	int tmp_major = 0;
+	int tmp_minor = 0;
+	int tmp_devt = 0;
+	dev_table.length = 0;
+	while (fscanf(fp, "%s %d:%d", tmp_name, &tmp_major, &tmp_minor) == 3)
+	{
+		tmp_devt = (tmp_major << 20) + tmp_minor;
+		memset(tmp_path, 0, sizeof(tmp_path));
+		sprintf(tmp_path, "/dev/%s", tmp_name);
+		dev_table.table[dev_table.length].devt = tmp_devt;
+		strcpy(dev_table.table[dev_table.length].devpath, tmp_path);
+		dev_table.length++;
+	}
+}
+
+char* dev_table_lookup(uint32_t devt){
+	for(int i = 0; i < dev_table.length; i++){
+		if(dev_table.table[i].devt == devt){
+			return dev_table.table[i].devpath;
+		}
+	}
+	return NULL;
+}
+
+
+
+
+
+
 
 static int char2int(char c)
 {
@@ -255,7 +304,7 @@ static void print_logo()
 		print_logo is used to print the welcome page with some basic information.
 	*/
 	FILE *fp;
-	fp = fopen("../src/logo/2.txt", "r");
+	fp = fopen("../crashcrawler/logo/2.txt", "r");
 	while (1)
 	{
 		memset(sys_info_buf, 0, sizeof(sys_info_buf));
@@ -276,7 +325,7 @@ static void sysinfo_initialize()
 	*/
 	print_logo();
 	FILE *fp;
-	fp = popen("bash ../src/hardware.sh", "r");
+	fp = popen("bash ../crashcrawler/hardware.sh", "r");
 	while (1)
 	{
 		memset(sys_info_buf, 0, sizeof(sys_info_buf));
@@ -287,7 +336,7 @@ static void sysinfo_initialize()
 	}
 	pclose(fp);
 }
-struct exitcatch_bpf *skel;
+struct crashcrawler_bpf *skel;
 
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {
@@ -306,7 +355,7 @@ static volatile bool exiting = false;
 static void sig_handler(int sig)
 {
 	/*
-		handling signal to stop exitcatch process
+		handling signal to stop crashcrawler process
 	*/
 	exiting = true;
 }
@@ -405,7 +454,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	*/
 	struct object_file *files;
 	int file_counts = 0;
-	const struct event *e = data;
+	struct event *e = (struct event*)data;
 	struct tm *tm;
 	char ts[64];
 	time_t t;
@@ -622,7 +671,7 @@ int main(int argc, char **argv)
 
 	/* Load and verify BPF application */
 	open_opts.btf_custom_path = "/sys/kernel/btf/vmlinux";
-	skel = exitcatch_bpf__open_opts(&open_opts);
+	skel = crashcrawler_bpf__open_opts(&open_opts);
 	if (!skel)
 	{
 		fprintf(stderr, "Failed to open and load BPF skeleton\n");
@@ -630,7 +679,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Load & verify BPF programs */
-	err = exitcatch_bpf__load(skel);
+	err = crashcrawler_bpf__load(skel);
 	if (err)
 	{
 		fprintf(stderr, "Failed to load and verify BPF skeleton\n");
@@ -638,7 +687,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Attach tracepoints */
-	err = exitcatch_bpf__attach(skel);
+	err = crashcrawler_bpf__attach(skel);
 	if (err)
 	{
 		fprintf(stderr, "Failed to attach BPF skeleton\n");
@@ -679,7 +728,7 @@ int main(int argc, char **argv)
 cleanup:
 	/* Clean up */
 	ring_buffer__free(rb);
-	exitcatch_bpf__destroy(skel);
+	crashcrawler_bpf__destroy(skel);
 
 	return err < 0 ? -err : 0;
 }
