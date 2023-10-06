@@ -393,7 +393,7 @@ static int get_user_func_name(unsigned long vaddr, const char *object_file_path,
 	/*
 		Reading function symbols
 	*/
-
+	return dump_elf_for_func_symbols(object_file_path, paddr, stack_func_name);
 	// memset(cmd, 0, sizeof(cmd));
 	// sprintf(cmd, "nm -n -D -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", object_file_path);
 	// fp = popen(cmd, "r");
