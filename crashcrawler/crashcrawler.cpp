@@ -10,15 +10,18 @@
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sys/mount.h>
-#include <sys/resource.h>
+#include <time.h>
+#include <unistd.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <elf.h>
+#include <gelf.h>
+#include <libelf.h>
 PathUtils path_utils;
 #define NAMELIMIT   100
 #define MAXLEN_PATH 100
@@ -157,83 +160,179 @@ static int search_object_file(unsigned long query,
     return left;
 }
 
-static int get_user_func_name(unsigned long vaddr,
-                              const char* object_file_path,
-                              char* stack_func_name) {
-    /*
-        get_user_func_name is used to search for the symbol name of a specific
-        virtual address in user stack.
-        input:
-            vaddr: specific address of memory;
-            object_file_path: binary Path of the specific tmpAddr;
-            stack_func_name: the return function name of the virtual address;
-        output: return a int indicate whether is a successful search;
-            0: successful search;
-            1: failed;
-    */
-    FILE* fp;
-    unsigned long offset = 0, paddr = 0, flag = 1, saddr = 0;
-    char cmd[NAMELIMIT];
-    int found_symbols = 0;
-    memset(stack_func_name, 0, sizeof(stack_func_name));
-    /*
-        Reading offset
-    */
-    memset(cmd, 0, sizeof(cmd));
-    sprintf(cmd,
-            "readelf -l %s | awk '$4==\"E\"{print x};{x=$2}'",
-            object_file_path);
-    fp = popen(cmd, "r");
-    fscanf(fp, "%lx", &offset);
-    paddr = vaddr + offset;
-    pclose(fp);
-    /*
-        Reading function symbols
-    */
-    memset(cmd, 0, sizeof(cmd));
-    sprintf(cmd,
-            "nm -n -D -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'",
-            object_file_path);
-    fp = popen(cmd, "r");
-    char tmp_name[NAMELIMIT] = {0};
-    while (fscanf(fp, "%lx", &saddr) == 1) {
-        found_symbols = 1;
-        if (paddr < saddr) {
-            flag = 0;
-            break;
-        }
-        fscanf(fp, "%s", tmp_name);
-        offset = paddr - saddr;
+unsigned int dump_elf_for_offset(const char *filename) {
+  if (elf_version(EV_CURRENT) == EV_NONE) {
+    fprintf(stderr, "Failed to initialize libelf\n");
+    exit(1);
+  }
+
+  FILE *file = fopen(filename, "rb");
+  if (file == NULL) {
+    fprintf(stderr, "Failed to open ELF file\n");
+    exit(1);
+  }
+
+  Elf *elf = elf_begin(fileno(file), ELF_C_READ, NULL);
+  if (elf == NULL) {
+    fprintf(stderr, "Failed to open ELF file\n");
+    exit(1);
+  }
+
+  Elf_Scn *scn = NULL;
+  GElf_Shdr shdr;
+
+#if defined(__x86_64__) || defined(__aarch64__)
+  Elf64_Word entry_offset;
+#else
+  Elf32_Word entry_offset;
+#endif
+  while ((scn = elf_nextscn(elf, scn)) != NULL) {
+    if (gelf_getshdr(scn, &shdr) != &shdr) {
+      fprintf(stderr, "Failed to read ELF header\n");
+      exit(1);
     }
-    pclose(fp);
-    if (!flag) {
-        sprintf(stack_func_name, "%s+0x%lx", tmp_name, offset);
-        return flag;
+
+    if (shdr.sh_type == SHT_PROGBITS && shdr.sh_flags == 6) {
+      entry_offset = shdr.sh_offset;
+#ifdef DEBUG
+      printf("dump_elf_for_offset: %x, %016lx: 0x%016lx\n", shdr.sh_type,
+             shdr.sh_offset, shdr.sh_addr);
+#endif
+      break;
     }
-    if (found_symbols) {
-        sprintf(stack_func_name, "[No Function Name]");
-        return flag;
+  }
+  elf_end(elf);
+  return entry_offset;
+}
+
+int dump_elf_for_func_symbols(const char *filename, const unsigned long paddr, char * stack_func_name) {
+  if (elf_version(EV_CURRENT) == EV_NONE) {
+    fprintf(stderr, "Failed to initialize libelf\n");
+    exit(1);
+  }
+
+  FILE *file = fopen(filename, "rb");
+  if (file == NULL) {
+    fprintf(stderr, "Failed to open ELF file\n");
+    exit(1);
+  }
+
+  Elf *elf = elf_begin(fileno(file), ELF_C_READ, NULL);
+  if (elf == NULL) {
+    fprintf(stderr, "Failed to open ELF file\n");
+    exit(1);
+  }
+
+  GElf_Shdr shdr;
+  Elf_Scn *scn = NULL;
+  Elf_Scn *symtab_scn_array[2] = {NULL};
+  int symtab_scn_array_size = 0;
+  Elf_Scn *symtab_scn = NULL;
+
+  int cnt = 0;
+  while ((scn = elf_nextscn(elf, scn)) != NULL) {
+    if (gelf_getshdr(scn, &shdr) != &shdr) {
+      fprintf(stderr, "Failed to read ELF header\n");
+      exit(1);
     }
-    // Looking for the stack in the dynamic Libs
-    memset(cmd, 0, sizeof(cmd));
-    sprintf(cmd,
-            "nm -n -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'",
-            object_file_path);
-    fp = popen(cmd, "r");
-    while (fscanf(fp, "%lx", &saddr) == 1) {
-        if (paddr < saddr) {
-            flag = 0;
-            break;
-        }
-        fscanf(fp, "%s", tmp_name);
-        offset = paddr - saddr;
+    // Critical filter: Look for the dynamic symbol table.
+    if (shdr.sh_type == SHT_DYNSYM || shdr.sh_type == SHT_SYMTAB) {
+      // printf("%d, Count: %d\n", shdr.sh_type, ++cnt);
+      // symtab_scn = scn;
+      symtab_scn_array[symtab_scn_array_size++] = scn;
     }
-    if (!flag)
-        sprintf(stack_func_name, "%s+0x%lx", tmp_name, offset);
-    else
-        sprintf(stack_func_name, "[No Function Name]");
-    pclose(fp);
-    return flag;
+  }
+
+  if (!symtab_scn_array_size) {
+	sprintf(stack_func_name, "[No Function Name]");
+	return 1;
+  }
+
+  unsigned long func_offset = 0x7f7f7f7f;
+  char  func_name[NAMELIMIT] = {0};
+  for (int idx = 0; idx < symtab_scn_array_size; ++idx) {
+    symtab_scn = symtab_scn_array[idx];
+
+    if (gelf_getshdr(symtab_scn, &shdr) != &shdr) {
+      fprintf(stderr, "Failed to read ELF header\n");
+      exit(1);
+    }
+
+    // Get & Traverse the symbol table.
+    Elf_Data *symtab_data = elf_getdata(symtab_scn, NULL);
+    if (!symtab_data) {
+      fprintf(stderr, "Failed to read symbol table data");
+      exit(1);
+    }
+
+    int num_symbols = symtab_data->d_size / sizeof(GElf_Sym);
+    GElf_Sym *symbols = (GElf_Sym *)symtab_data->d_buf;
+
+    for (int i = 0; i < num_symbols; i++) {
+      GElf_Sym *symbol = &symbols[i];
+
+      // Critical filter for determined functions.
+      if (GELF_ST_TYPE(symbol->st_info) == STT_FUNC && symbol->st_value != 0) {
+		unsigned long current_addr = (unsigned long)symbol->st_value;
+				// if(paddr > current_addr && func_offset > (paddr - current_addr)){
+		if(paddr > current_addr){
+				const char * symbol_name =
+					elf_strptr(elf, shdr.sh_link, symbol->st_name);
+			printf("0x%016lx,0x%016lx,0x%016lx,0x%016lx,%s\n", current_addr, paddr, func_offset, paddr - current_addr, symbol_name);
+			if(func_offset > (paddr - current_addr)){
+				func_offset = paddr - current_addr;
+				strncpy(func_name, symbol_name, NAMELIMIT);
+				func_name[NAMELIMIT - 1] = '\0';
+				// }
+				printf("0x%016lx %s\n", (unsigned long)symbol->st_value, symbol_name);
+				#ifdef DEBUG
+				#endif
+			}
+		}
+      }
+    }
+  }
+  if(func_offset != 0x7f7f7f7f)
+  {
+	sprintf(stack_func_name, "%s+0x%lx", func_name, func_offset);
+	return 0;
+  }
+  else 
+  {
+	sprintf(stack_func_name, "[No Function Name]");
+	return 1;
+  }
+  elf_end(elf);
+//   return 0;
+}
+
+static int get_user_func_name(unsigned long vaddr, const char *object_file_path, char *stack_func_name)
+{
+	/*
+		get_user_func_name is used to search for the symbol name of a specific
+		virtual address in user stack.
+		input:
+			vaddr: specific address of memory;
+			object_file_path: binary Path of the specific tmpAddr;
+			stack_func_name: the return function name of the virtual address;
+		output: return a int indicate whether is a successful search;
+			0: successful search;
+			1: failed;
+	*/
+	FILE *fp;
+	unsigned long offset = 0, paddr = 0;
+	char cmd[NAMELIMIT];
+	int found_symbols = 0;
+	memset(stack_func_name, 0, sizeof(stack_func_name));
+	/*
+		Reading offset
+	*/
+	offset = dump_elf_for_offset(object_file_path);
+	paddr = vaddr + offset;
+	/*
+		Reading function symbols
+	*/
+	return dump_elf_for_func_symbols(object_file_path, paddr, stack_func_name);
 }
 
 static void print_logo() {
