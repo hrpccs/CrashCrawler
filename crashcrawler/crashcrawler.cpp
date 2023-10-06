@@ -727,6 +727,7 @@ int main(int argc, char** argv) {
     // sudo mount -t debugfs none /sys/kernel/debug
     LIBBPF_OPTS(bpf_object_open_opts, open_opts);
     struct ring_buffer* rb = NULL;
+	struct bpf_link* link = NULL;
     int err;
 
     if (argc > 2) {
@@ -754,22 +755,26 @@ int main(int argc, char** argv) {
     }
 
     /* Load & verify BPF programs */
-    err = crashcrawler_bpf__load(skel);
+    // err = crashcrawler_bpf__load(skel);
+	err = bpf_object__load(skel->obj);
     if (err) {
         fprintf(stderr, "Failed to load and verify BPF skeleton\n");
         goto cleanup;
     }
 
     /* Attach tracepoints */
-    err = crashcrawler_bpf__attach(skel);
-    if (err) {
+    // err = crashcrawler_bpf__attach(skel);
+
+	// attach single prog 
+	// link = bpf_program__attach(skel->progs.kprobe__do_exit_wit_path);
+	// link = bpf_program__attach(skel->progs.kprobe__do_exit_no_path);
+	link = bpf_program__attach(skel->progs.fentry__do_exit);
+    if (link == NULL) {
         fprintf(stderr, "Failed to attach BPF skeleton\n");
         goto cleanup;
     }
 
     /* Set up ring buffer polling */
-
-    //
     mkdir(log_path, S_IRWXU);
     chdir(log_path);
     //
