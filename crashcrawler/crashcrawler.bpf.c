@@ -157,7 +157,7 @@ int BPF_KPROBE(kprobe__do_exit_no_path, long exitcode) {
         int count = 0;
 #pragma unroll
 
-        for (int i = 0; i < 110; i++) {
+        for (int i = 0; i < LEVEL_KPROBE_WITHOUT_PATH; i++) {
             // if (vma) //a trick: no nullptr check will not result in segment
             // fault crash in BPF code
             // and reduce the state the verifier store when loading BPF program.
@@ -294,7 +294,7 @@ int BPF_KPROBE(kprobe__do_exit_wit_path, long exitcode) {
         int count = 0;
 #pragma unroll
 
-        for (int i = 0; i < 45; i++) {
+        for (int i = 0; i < LEVEL_KPROBE_WITH_PATH; i++) {
             // if (vma) //a trick: no nullptr check will not result in segment
             // fault crash in BPF code
             // and reduce the state the verifier store when loading BPF program.

@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <getopt.h>
 PathUtils path_utils;
 #define NAMELIMIT   100
 #define MAXLEN_PATH 100
@@ -730,12 +731,22 @@ int main(int argc, char** argv) {
 	struct bpf_link* link = NULL;
     int err;
 
-    if (argc > 2) {
-        return -1;
+    long long opt;
+    int mode = 0;
+    while((opt = getopt(argc, argv, "p:m:d")) != -1){
+        switch(opt){
+            case 'p':
+                strcpy(log_path, optarg);
+                break;
+            case 'm':
+                mode = atoi(optarg);
+                break;
+            default:
+                printf("Usage: %s [-p log_path] [-m 1/2/3 (kprobe_with_path/kprobe_without_path/fentry)]\n", argv[0]);
+                exit(EXIT_FAILURE);
+        }
     }
 
-    if (argc == 2)
-        strcpy(log_path, argv[1]);
 
     printf(BLUE "Log will be saved in: %s" NONE "\n", log_path);
     libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
@@ -766,9 +777,23 @@ int main(int argc, char** argv) {
     // err = crashcrawler_bpf__attach(skel);
 
 	// attach single prog 
-	// link = bpf_program__attach(skel->progs.kprobe__do_exit_wit_path);
-	// link = bpf_program__attach(skel->progs.kprobe__do_exit_no_path);
-	link = bpf_program__attach(skel->progs.fentry__do_exit);
+    switch(mode){
+        case 1:
+            link = bpf_program__attach(skel->progs.kprobe__do_exit_wit_path);
+            printf("attach kprobe__do_exit_wit_path\n");
+            break;
+        case 2:
+            link = bpf_program__attach(skel->progs.kprobe__do_exit_no_path);
+            printf("attach kprobe__do_exit_no_path\n");
+            break;
+        case 3:
+            link = bpf_program__attach(skel->progs.fentry__do_exit);
+            printf("attach fentry__do_exit\n");
+            break;
+        default:
+            printf("wrong mode, must be 1,2,3\n");
+            exit(EXIT_FAILURE);
+    }
     if (link == NULL) {
         fprintf(stderr, "Failed to attach BPF skeleton\n");
         goto cleanup;

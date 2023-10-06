@@ -22,7 +22,7 @@ add_dependencies(crashcrawler crashcrawler_skel)
 
 # Create a library from crashcrawler.bpf.c
 add_library(crashcrawler_bpf OBJECT ${CMAKE_SOURCE_DIR}/crashcrawler/crashcrawler.bpf.c)
-target_compile_options(crashcrawler_bpf PRIVATE -target bpf -D__TARGET_ARCH_x86 -Oz)
+target_compile_options(crashcrawler_bpf PRIVATE -target bpf -D__TARGET_ARCH_x86 -O2)
 set_target_properties(crashcrawler_bpf PROPERTIES COMPILE_FLAGS "-xc")
 add_dependencies(crashcrawler_bpf libbpf vmlinux.h crashcrawler_bpf_program)
 

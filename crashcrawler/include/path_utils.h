@@ -82,7 +82,6 @@ public:
 
             inode_buf[strlen(inode_buf) - 1] = '\0';
             inode_path[strlen(inode_path) - 1] = '\0';
-            printf("cmd %s\n", cmd);
 
             if(inode_path[0] != '/'){
                 return "";
