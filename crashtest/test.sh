@@ -26,6 +26,6 @@ pushd $SEGFAULT_PATH
     do
         SLP=1
     done
-    rm -rf *.bin
+#    rm -rf *.bin
 popd
 echo "Finish Testing"

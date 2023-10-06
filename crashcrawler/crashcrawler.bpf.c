@@ -136,6 +136,24 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
     e->mm_env_end = BPF_CORE_READ(mm, env_end);
     //get file mapping
 
+    file = BPF_CORE_READ(vma, vm_file);
+    if(file == NULL){
+      bpf_printk("file is null\n");
+    }
+    filepath = BPF_CORE_READ(file, f_path);
+    struct dentry *dentry = filepath.dentry;
+    struct qstr dname = BPF_CORE_READ(dentry, d_name);
+    // read abs path of share lib , inspired by d_path() kernel function
+    // MAXLEN_VMA_NAME = 2^n;
+    for (int k = MAX_LEVEL - 1; k >= 0; k--){
+      // bpf_probe_read_kernel_str(&(e->mmap[count].name[k][4]), (dname.len + 5) & (MAXLEN_VMA_NAME - 1), dname.name); // weak ptr offset
+      // bpf_printk("name: %s\n", &(e->mmap[count].name[k][4]));
+      bpf_probe_read_kernel_str(&(e->mmap[0].name[k][0]), (dname.len + 5) & (MAXLEN_VMA_NAME - 1), dname.name); // weak ptr offset
+      // bpf_printk("name: %s\n", &(e->mmap[0].name[k][0]));
+      dentry = BPF_CORE_READ(dentry, d_parent);
+      dname = BPF_CORE_READ(dentry, d_name);
+    }
+
     int count = 0;
 #pragma unroll
 
@@ -143,7 +161,6 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
 		{
       // if (vma) //a trick: no nullptr check will not result in segment fault crash in BPF code
       //and reduce the state the verifier store when loading BPF program.
-
       {
         file = BPF_CORE_READ(vma, vm_file);
         if (!file)
@@ -152,28 +169,32 @@ int BPF_KPROBE(kprobe__do_exit, long exitcode)
           vma = BPF_CORE_READ(vma, vm_next);
           continue;
         }
-        e->mmap[count].dev = BPF_CORE_READ(vma, vm_file, f_inode, i_sb, s_dev);
-        e->mmap[count].ino = BPF_CORE_READ(vma, vm_file, f_inode, i_ino);
+        struct inode* f_inode = BPF_CORE_READ(file, f_inode);
+        e->mmap[count].dev = BPF_CORE_READ(f_inode, i_sb, s_dev);
+        e->mmap[count].ino = BPF_CORE_READ(f_inode, i_ino);
         temp = BPF_CORE_READ(vma, vm_pgoff);
         e->mmap[count].pgoff = temp << PAGE_SHIFT;
 
         e->mmap[count].start = BPF_CORE_READ(vma, vm_start);
         e->mmap[count].end = BPF_CORE_READ(vma, vm_end);
         e->mmap[count].flags = BPF_CORE_READ(vma, vm_flags);
-        {
-          filepath = BPF_CORE_READ(file, f_path);
-          struct dentry *dentry = filepath.dentry;
-          struct qstr dname = BPF_CORE_READ(dentry, d_name);
+          // filepath = BPF_CORE_READ(file, f_path);
+          // struct dentry *dentry = filepath.dentry;
+          // e->mmap[count].parent_ino = BPF_CORE_READ(dentry, d_parent, d_inode, i_ino);
+          // struct qstr dname = BPF_CORE_READ(dentry, d_name);
 
           // read abs path of share lib , inspired by d_path() kernel function
           // MAXLEN_VMA_NAME = 2^n;
-          for (int k = MAX_LEVEL - 1; k >= 0; k--)
-					  {
-            bpf_probe_read_kernel_str(&(e->mmap[count].name[k][4]), (dname.len + 5) & (MAXLEN_VMA_NAME - 1), dname.name); // weak ptr offset
-            dentry = BPF_CORE_READ(dentry, d_parent);
-            dname = BPF_CORE_READ(dentry, d_name);
-          }
-        }
+          // for (int k = MAX_LEVEL - 1; k >= 0; k--)
+					//   {
+          //   // bpf_probe_read_kernel_str(&(e->mmap[count].name[k][4]), (dname.len + 5) & (MAXLEN_VMA_NAME - 1), dname.name); // weak ptr offset
+          //   // bpf_printk("name: %s\n", &(e->mmap[count].name[k][4]));
+          //   bpf_probe_read_kernel_str(&(e->mmap[count].name[k][0]), (dname.len + 5) & (MAXLEN_VMA_NAME - 1), dname.name); // weak ptr offset
+          //   bpf_printk("name: %s\n", &(e->mmap[count].name[k][0]));
+
+          //   dentry = BPF_CORE_READ(dentry, d_parent);
+          //   dname = BPF_CORE_READ(dentry, d_name);
+          // }
         count++;
         if(BPF_CORE_READ(vma,vm_flags) & VM_EXEC){
 

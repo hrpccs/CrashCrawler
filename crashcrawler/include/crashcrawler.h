@@ -8,7 +8,7 @@
 
 // should get from kernel header ?
 // #define MAX_VMA_ENTRY 51
-#define MAX_VMA_ENTRY 47 //max dynamic lib searching level
+#define MAX_VMA_ENTRY 110//max dynamic lib searching level
 #define MAXLEN_VMA_NAME 64
 #define MAX_LEVEL 8
 
@@ -64,7 +64,8 @@ struct mmap_struct{
 	unsigned long flags;	//segement rwx
 	unsigned long long pgoff;	//page offset
 	unsigned long ino;	//inode number
-	dev_t dev;			//device num
+	unsigned long dev;			//device num
+	unsigned long parent_ino;
 	char name[MAX_LEVEL][MAXLEN_VMA_NAME+1];	//abslote object file path
 };
 
