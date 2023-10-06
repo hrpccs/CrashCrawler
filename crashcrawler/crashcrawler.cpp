@@ -7,21 +7,19 @@
 #include "path_utils.h"
 #include <argp.h>
 #include <bpf/libbpf.h>
+#include <elf.h>
+#include <gelf.h>
+#include <getopt.h>
+#include <libelf.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
-#include <getopt.h>
-#include <elf.h>
-#include <gelf.h>
-#include <libelf.h>
 PathUtils path_utils;
 #define NAMELIMIT   100
 #define MAXLEN_PATH 100
@@ -160,179 +158,178 @@ static int search_object_file(unsigned long query,
     return left;
 }
 
-unsigned int dump_elf_for_offset(const char *filename) {
-  if (elf_version(EV_CURRENT) == EV_NONE) {
-    fprintf(stderr, "Failed to initialize libelf\n");
-    exit(1);
-  }
+unsigned int dump_elf_for_offset(const char* filename) {
+    if (elf_version(EV_CURRENT) == EV_NONE) {
+        fprintf(stderr, "Failed to initialize libelf\n");
+        exit(1);
+    }
 
-  FILE *file = fopen(filename, "rb");
-  if (file == NULL) {
-    fprintf(stderr, "Failed to open ELF file\n");
-    exit(1);
-  }
+    FILE* file = fopen(filename, "rb");
+    if (file == NULL) {
+        fprintf(stderr, "Failed to open ELF file\n");
+        exit(1);
+    }
 
-  Elf *elf = elf_begin(fileno(file), ELF_C_READ, NULL);
-  if (elf == NULL) {
-    fprintf(stderr, "Failed to open ELF file\n");
-    exit(1);
-  }
+    Elf* elf = elf_begin(fileno(file), ELF_C_READ, NULL);
+    if (elf == NULL) {
+        fprintf(stderr, "Failed to open ELF file\n");
+        exit(1);
+    }
 
-  Elf_Scn *scn = NULL;
-  GElf_Shdr shdr;
+    Elf_Scn* scn = NULL;
+    GElf_Shdr shdr;
 
 #if defined(__x86_64__) || defined(__aarch64__)
-  Elf64_Word entry_offset;
+    Elf64_Word entry_offset;
 #else
-  Elf32_Word entry_offset;
+    Elf32_Word entry_offset;
 #endif
-  while ((scn = elf_nextscn(elf, scn)) != NULL) {
-    if (gelf_getshdr(scn, &shdr) != &shdr) {
-      fprintf(stderr, "Failed to read ELF header\n");
-      exit(1);
-    }
+    while ((scn = elf_nextscn(elf, scn)) != NULL) {
+        if (gelf_getshdr(scn, &shdr) != &shdr) {
+            fprintf(stderr, "Failed to read ELF header\n");
+            exit(1);
+        }
 
-    if (shdr.sh_type == SHT_PROGBITS && shdr.sh_flags == 6) {
-      entry_offset = shdr.sh_offset;
+        if (shdr.sh_type == SHT_PROGBITS && shdr.sh_flags == 6) {
+            entry_offset = shdr.sh_offset;
 #ifdef DEBUG
-      printf("dump_elf_for_offset: %x, %016lx: 0x%016lx\n", shdr.sh_type,
-             shdr.sh_offset, shdr.sh_addr);
+            printf("dump_elf_for_offset: %x, %016lx: 0x%016lx\n",
+                   shdr.sh_type,
+                   shdr.sh_offset,
+                   shdr.sh_addr);
 #endif
-      break;
+            break;
+        }
     }
-  }
-  elf_end(elf);
-  return entry_offset;
+    elf_end(elf);
+    return entry_offset;
 }
 
-int dump_elf_for_func_symbols(const char *filename, const unsigned long paddr, char * stack_func_name) {
-  if (elf_version(EV_CURRENT) == EV_NONE) {
-    fprintf(stderr, "Failed to initialize libelf\n");
-    exit(1);
-  }
-
-  FILE *file = fopen(filename, "rb");
-  if (file == NULL) {
-    fprintf(stderr, "Failed to open ELF file\n");
-    exit(1);
-  }
-
-  Elf *elf = elf_begin(fileno(file), ELF_C_READ, NULL);
-  if (elf == NULL) {
-    fprintf(stderr, "Failed to open ELF file\n");
-    exit(1);
-  }
-
-  GElf_Shdr shdr;
-  Elf_Scn *scn = NULL;
-  Elf_Scn *symtab_scn_array[2] = {NULL};
-  int symtab_scn_array_size = 0;
-  Elf_Scn *symtab_scn = NULL;
-
-  int cnt = 0;
-  while ((scn = elf_nextscn(elf, scn)) != NULL) {
-    if (gelf_getshdr(scn, &shdr) != &shdr) {
-      fprintf(stderr, "Failed to read ELF header\n");
-      exit(1);
-    }
-    // Critical filter: Look for the dynamic symbol table.
-    if (shdr.sh_type == SHT_DYNSYM || shdr.sh_type == SHT_SYMTAB) {
-      // printf("%d, Count: %d\n", shdr.sh_type, ++cnt);
-      // symtab_scn = scn;
-      symtab_scn_array[symtab_scn_array_size++] = scn;
-    }
-  }
-
-  if (!symtab_scn_array_size) {
-	sprintf(stack_func_name, "[No Function Name]");
-	return 1;
-  }
-
-  unsigned long func_offset = 0x7f7f7f7f;
-  char  func_name[NAMELIMIT] = {0};
-  for (int idx = 0; idx < symtab_scn_array_size; ++idx) {
-    symtab_scn = symtab_scn_array[idx];
-
-    if (gelf_getshdr(symtab_scn, &shdr) != &shdr) {
-      fprintf(stderr, "Failed to read ELF header\n");
-      exit(1);
+int dump_elf_for_func_symbols(const char* filename,
+                              const unsigned long paddr,
+                              char* stack_func_name) {
+    if (elf_version(EV_CURRENT) == EV_NONE) {
+        fprintf(stderr, "Failed to initialize libelf\n");
+        exit(1);
     }
 
-    // Get & Traverse the symbol table.
-    Elf_Data *symtab_data = elf_getdata(symtab_scn, NULL);
-    if (!symtab_data) {
-      fprintf(stderr, "Failed to read symbol table data");
-      exit(1);
+    FILE* file = fopen(filename, "rb");
+    if (file == NULL) {
+        fprintf(stderr, "Failed to open ELF file\n");
+        exit(1);
     }
 
-    int num_symbols = symtab_data->d_size / sizeof(GElf_Sym);
-    GElf_Sym *symbols = (GElf_Sym *)symtab_data->d_buf;
-
-    for (int i = 0; i < num_symbols; i++) {
-      GElf_Sym *symbol = &symbols[i];
-
-      // Critical filter for determined functions.
-      if (GELF_ST_TYPE(symbol->st_info) == STT_FUNC && symbol->st_value != 0) {
-		unsigned long current_addr = (unsigned long)symbol->st_value;
-				// if(paddr > current_addr && func_offset > (paddr - current_addr)){
-		if(paddr > current_addr){
-				const char * symbol_name =
-					elf_strptr(elf, shdr.sh_link, symbol->st_name);
-			printf("0x%016lx,0x%016lx,0x%016lx,0x%016lx,%s\n", current_addr, paddr, func_offset, paddr - current_addr, symbol_name);
-			if(func_offset > (paddr - current_addr)){
-				func_offset = paddr - current_addr;
-				strncpy(func_name, symbol_name, NAMELIMIT);
-				func_name[NAMELIMIT - 1] = '\0';
-				// }
-				printf("0x%016lx %s\n", (unsigned long)symbol->st_value, symbol_name);
-				#ifdef DEBUG
-				#endif
-			}
-		}
-      }
+    Elf* elf = elf_begin(fileno(file), ELF_C_READ, NULL);
+    if (elf == NULL) {
+        fprintf(stderr, "Failed to open ELF file\n");
+        exit(1);
     }
-  }
-  if(func_offset != 0x7f7f7f7f)
-  {
-	sprintf(stack_func_name, "%s+0x%lx", func_name, func_offset);
-	return 0;
-  }
-  else 
-  {
-	sprintf(stack_func_name, "[No Function Name]");
-	return 1;
-  }
-  elf_end(elf);
-//   return 0;
+
+    GElf_Shdr shdr;
+    Elf_Scn* scn = NULL;
+    Elf_Scn* symtab_scn_array[2] = {NULL};
+    int symtab_scn_array_size = 0;
+    Elf_Scn* symtab_scn = NULL;
+
+    int cnt = 0;
+    while ((scn = elf_nextscn(elf, scn)) != NULL) {
+        if (gelf_getshdr(scn, &shdr) != &shdr) {
+            fprintf(stderr, "Failed to read ELF header\n");
+            exit(1);
+        }
+        // Critical filter: Look for the dynamic symbol table.
+        if (shdr.sh_type == SHT_DYNSYM || shdr.sh_type == SHT_SYMTAB) {
+            // printf("%d, Count: %d\n", shdr.sh_type, ++cnt);
+            // symtab_scn = scn;
+            symtab_scn_array[symtab_scn_array_size++] = scn;
+        }
+    }
+
+    if (!symtab_scn_array_size) {
+        sprintf(stack_func_name, "[No Function Name]");
+        return 1;
+    }
+
+    unsigned long func_offset = 0x7f7f7f7f;
+    char func_name[NAMELIMIT] = {0};
+    for (int idx = 0; idx < symtab_scn_array_size; ++idx) {
+        symtab_scn = symtab_scn_array[idx];
+
+        if (gelf_getshdr(symtab_scn, &shdr) != &shdr) {
+            fprintf(stderr, "Failed to read ELF header\n");
+            exit(1);
+        }
+
+        // Get & Traverse the symbol table.
+        Elf_Data* symtab_data = elf_getdata(symtab_scn, NULL);
+        if (!symtab_data) {
+            fprintf(stderr, "Failed to read symbol table data");
+            exit(1);
+        }
+
+        int num_symbols = symtab_data->d_size / sizeof(GElf_Sym);
+        GElf_Sym* symbols = (GElf_Sym*)symtab_data->d_buf;
+
+        for (int i = 0; i < num_symbols; i++) {
+            GElf_Sym* symbol = &symbols[i];
+
+            // Critical filter for determined functions.
+            if (GELF_ST_TYPE(symbol->st_info) == STT_FUNC &&
+                symbol->st_value != 0) {
+                unsigned long current_addr = (unsigned long)symbol->st_value;
+                if (paddr > current_addr) {
+                    const char* symbol_name =
+                            elf_strptr(elf, shdr.sh_link, symbol->st_name);
+                    if (func_offset > (paddr - current_addr)) {
+                        func_offset = paddr - current_addr;
+                        strncpy(func_name, symbol_name, NAMELIMIT);
+                        func_name[NAMELIMIT - 1] = '\0';
+#ifdef DEBUG
+#endif
+                    }
+                }
+            }
+        }
+    }
+    if (func_offset != 0x7f7f7f7f) {
+        sprintf(stack_func_name, "%s+0x%lx", func_name, func_offset);
+        return 0;
+    } else {
+        sprintf(stack_func_name, "[No Function Name]");
+        return 1;
+    }
+    elf_end(elf);
+    //   return 0;
 }
 
-static int get_user_func_name(unsigned long vaddr, const char *object_file_path, char *stack_func_name)
-{
-	/*
-		get_user_func_name is used to search for the symbol name of a specific
-		virtual address in user stack.
-		input:
-			vaddr: specific address of memory;
-			object_file_path: binary Path of the specific tmpAddr;
-			stack_func_name: the return function name of the virtual address;
-		output: return a int indicate whether is a successful search;
-			0: successful search;
-			1: failed;
-	*/
-	FILE *fp;
-	unsigned long offset = 0, paddr = 0;
-	char cmd[NAMELIMIT];
-	int found_symbols = 0;
-	memset(stack_func_name, 0, sizeof(stack_func_name));
-	/*
-		Reading offset
-	*/
-	offset = dump_elf_for_offset(object_file_path);
-	paddr = vaddr + offset;
-	/*
-		Reading function symbols
-	*/
-	return dump_elf_for_func_symbols(object_file_path, paddr, stack_func_name);
+static int get_user_func_name(unsigned long vaddr,
+                              const char* object_file_path,
+                              char* stack_func_name) {
+    /*
+        get_user_func_name is used to search for the symbol name of a specific
+        virtual address in user stack.
+        input:
+            vaddr: specific address of memory;
+            object_file_path: binary Path of the specific tmpAddr;
+            stack_func_name: the return function name of the virtual address;
+        output: return a int indicate whether is a successful search;
+            0: successful search;
+            1: failed;
+    */
+    FILE* fp;
+    unsigned long offset = 0, paddr = 0;
+    char cmd[NAMELIMIT];
+    int found_symbols = 0;
+    memset(stack_func_name, 0, sizeof(stack_func_name));
+    /*
+        Reading offset
+    */
+    offset = dump_elf_for_offset(object_file_path);
+    paddr = vaddr + offset;
+    /*
+        Reading function symbols
+    */
+    return dump_elf_for_func_symbols(object_file_path, paddr, stack_func_name);
 }
 
 static void print_logo() {
@@ -701,32 +698,33 @@ static int handle_event(void* ctx, void* data, size_t data_sz) {
     last_inode = -1;
     for (int i = 0, j = 0; i < e->count; i++) {
         curr = &(e->mmap[i]);
-		if(i == 0){
-           	int index = 0;
-           	for (int level = 0; level < MAX_LEVEL; level++) {
-               	if (curr->name[level][0] == '\0' ||
-                   	curr->name[level][0] == '/') {
-                   	continue;
-               	}
-               	index += sprintf(files[j].exec_file_path + index,
-                                	"/%s",
-                                	curr->name[level]);
-           	}
-           	files[j].exec_file_path[index] = '\0';
-			// printf("first filepath %s\n", files[j].exec_file_path);
-			path_utils.set_inode_path(curr->ino, std::string(files[j].exec_file_path));
-		}
+        if (i == 0) {
+            int index = 0;
+            for (int level = 0; level < MAX_LEVEL; level++) {
+                if (curr->name[level][0] == '\0' ||
+                    curr->name[level][0] == '/') {
+                    continue;
+                }
+                index += sprintf(files[j].exec_file_path + index,
+                                 "/%s",
+                                 curr->name[level]);
+            }
+            files[j].exec_file_path[index] = '\0';
+            // printf("first filepath %s\n", files[j].exec_file_path);
+            path_utils.set_inode_path(curr->ino,
+                                      std::string(files[j].exec_file_path));
+        }
         if ((curr->flags & VM_EXEC) && curr->ino != last_inode) {
             files[j].segment_end = curr->end;
             files[j].segment_start = curr->start;
 
-			std::string path = path_utils.get_inode_path(curr->ino, curr->dev);
-			if(path == ""){
-				fprintf(fp, "Error finding file path\n");
-				printf("Error finding file path\n");
-				// return 0;
-			}
-			strcpy(files[j].exec_file_path, path.c_str());
+            std::string path = path_utils.get_inode_path(curr->ino, curr->dev);
+            if (path == "") {
+                fprintf(fp, "Error finding file path\n");
+                printf("Error finding file path\n");
+                // return 0;
+            }
+            strcpy(files[j].exec_file_path, path.c_str());
 
             // int index = 0;
             // for (int level = 0; level < MAX_LEVEL; level++) {
@@ -827,13 +825,13 @@ int main(int argc, char** argv) {
     // sudo mount -t debugfs none /sys/kernel/debug
     LIBBPF_OPTS(bpf_object_open_opts, open_opts);
     struct ring_buffer* rb = NULL;
-	struct bpf_link* link = NULL;
+    struct bpf_link* link = NULL;
     int err;
 
     long long opt;
     int mode = 0;
-    while((opt = getopt(argc, argv, "p:m:d")) != -1){
-        switch(opt){
+    while ((opt = getopt(argc, argv, "p:m:d")) != -1) {
+        switch (opt) {
             case 'p':
                 strcpy(log_path, optarg);
                 break;
@@ -841,11 +839,12 @@ int main(int argc, char** argv) {
                 mode = atoi(optarg);
                 break;
             default:
-                printf("Usage: %s [-p log_path] [-m 1/2/3 (kprobe_with_path/kprobe_without_path/fentry)]\n", argv[0]);
+                printf("Usage: %s [-p log_path] [-m 1/2/3 "
+                       "(kprobe_with_path/kprobe_without_path/fentry)]\n",
+                       argv[0]);
                 exit(EXIT_FAILURE);
         }
     }
-
 
     printf(BLUE "Log will be saved in: %s" NONE "\n", log_path);
     libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
@@ -866,7 +865,7 @@ int main(int argc, char** argv) {
 
     /* Load & verify BPF programs */
     // err = crashcrawler_bpf__load(skel);
-	err = bpf_object__load(skel->obj);
+    err = bpf_object__load(skel->obj);
     if (err) {
         fprintf(stderr, "Failed to load and verify BPF skeleton\n");
         goto cleanup;
@@ -875,8 +874,8 @@ int main(int argc, char** argv) {
     /* Attach tracepoints */
     // err = crashcrawler_bpf__attach(skel);
 
-	// attach single prog 
-    switch(mode){
+    // attach single prog
+    switch (mode) {
         case 1:
             link = bpf_program__attach(skel->progs.kprobe__do_exit_wit_path);
             printf("attach kprobe__do_exit_wit_path\n");
