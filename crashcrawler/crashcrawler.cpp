@@ -389,7 +389,7 @@ static int get_user_func_name(unsigned long vaddr, const char *object_file_path,
 	// fscanf(fp, "%lx", &offset);
 	offset = dump_elf_for_offset(object_file_path);
 	paddr = vaddr + offset;
-	pclose(fp);
+	// pclose(fp);
 	/*
 		Reading function symbols
 	*/
