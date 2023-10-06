@@ -337,16 +337,20 @@ int dump_elf_for_func_symbols(const char *filename, const unsigned long paddr, c
       // Critical filter for determined functions.
       if (GELF_ST_TYPE(symbol->st_info) == STT_FUNC && symbol->st_value != 0) {
 		unsigned long current_addr = (unsigned long)symbol->st_value;
-		if(current_addr < paddr && func_offset < (paddr - current_addr)){
-			const char * symbol_name =
-				elf_strptr(elf, shdr.sh_link, symbol->st_name);
-			func_offset = paddr - current_addr;
-			strncpy(func_name, symbol_name, NAMELIMIT);
-			func_name[NAMELIMIT - 1] = '\0';
-			// }
-			printf("0x%016lx %s\n", (unsigned long)symbol->st_value, symbol_name);
-#ifdef DEBUG
-#endif
+				// if(paddr > current_addr && func_offset > (paddr - current_addr)){
+		if(paddr > current_addr){
+				const char * symbol_name =
+					elf_strptr(elf, shdr.sh_link, symbol->st_name);
+			printf("0x%016lx,0x%016lx,0x%016lx,0x%016lx,%s\n", current_addr, paddr, func_offset, paddr - current_addr, symbol_name);
+			if(func_offset > (paddr - current_addr)){
+				func_offset = paddr - current_addr;
+				strncpy(func_name, symbol_name, NAMELIMIT);
+				func_name[NAMELIMIT - 1] = '\0';
+				// }
+				printf("0x%016lx %s\n", (unsigned long)symbol->st_value, symbol_name);
+				#ifdef DEBUG
+				#endif
+			}
 		}
       }
     }
