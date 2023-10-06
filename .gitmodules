@@ -1,3 +1,7 @@
 [submodule "libelf"]
 	path = libelf
 	url = https://github.com/WolfgangSt/libelf.git
+[submodule "libbpf"]
+	path = libbpf
+	url = https://github.com/libbpf/libbpf.git
+	branch = master
