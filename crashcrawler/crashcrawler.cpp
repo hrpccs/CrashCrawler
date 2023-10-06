@@ -376,70 +376,19 @@ static int get_user_func_name(unsigned long vaddr, const char *object_file_path,
 			1: failed;
 	*/
 	FILE *fp;
-	unsigned long offset = 0, paddr = 0, flag = 1, saddr = 0;
+	unsigned long offset = 0, paddr = 0;
 	char cmd[NAMELIMIT];
 	int found_symbols = 0;
 	memset(stack_func_name, 0, sizeof(stack_func_name));
 	/*
 		Reading offset
 	*/
-	// memset(cmd, 0, sizeof(cmd));
-	// sprintf(cmd, "readelf -l %s | awk '$4==\"E\"{print x};{x=$2}'", object_file_path);
-	// fp = popen(cmd, "r");
-	// fscanf(fp, "%lx", &offset);
 	offset = dump_elf_for_offset(object_file_path);
 	paddr = vaddr + offset;
-	// pclose(fp);
 	/*
 		Reading function symbols
 	*/
 	return dump_elf_for_func_symbols(object_file_path, paddr, stack_func_name);
-	// memset(cmd, 0, sizeof(cmd));
-	// sprintf(cmd, "nm -n -D -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", object_file_path);
-	// fp = popen(cmd, "r");
-	// char tmp_name[NAMELIMIT] = {0};
-	// while (fscanf(fp, "%lx", &saddr) == 1)
-	// {
-	// 	found_symbols = 1;
-	// 	if (paddr < saddr)
-	// 	{
-	// 		flag = 0;
-	// 		break;
-	// 	}
-	// 	fscanf(fp, "%s", tmp_name);
-	// 	offset = paddr - saddr;
-	// }
-	// pclose(fp);
-	// if (!flag)
-	// {
-	// 	sprintf(stack_func_name, "%s+0x%lx", tmp_name, offset);
-	// 	return flag;
-	// }
-	// if (found_symbols)
-	// {
-	// 	sprintf(stack_func_name, "[No Function Name]");
-	// 	return flag;
-	// }
-	// // Looking for the stack in the dynamic Libs
-	// memset(cmd, 0, sizeof(cmd));
-	// sprintf(cmd, "nm -n -C %s | awk '$2==\"t\" || $2==\"T\"{print $1, $3}'", object_file_path);
-	// fp = popen(cmd, "r");
-	// while (fscanf(fp, "%lx", &saddr) == 1)
-	// {
-	// 	if (paddr < saddr)
-	// 	{
-	// 		flag = 0;
-	// 		break;
-	// 	}
-	// 	fscanf(fp, "%s", tmp_name);
-	// 	offset = paddr - saddr;
-	// }
-	// if (!flag)
-	// 	sprintf(stack_func_name, "%s+0x%lx", tmp_name, offset);
-	// else
-	// 	sprintf(stack_func_name, "[No Function Name]");
-	// pclose(fp);
-	// return flag;
 }
 
 static void print_logo()
