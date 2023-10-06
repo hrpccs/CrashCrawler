@@ -14,6 +14,9 @@
 #include <sys/resource.h>
 #include <sys/mount.h>
 #include <bpf/libbpf.h>
+#include <elf.h>
+#include <gelf.h>
+#include <libelf.h>
 #include "crashcrawler.h"
 #include "crashcrawler.skel.h"
 #include "color.h"
@@ -220,6 +223,51 @@ static int search_object_file(unsigned long query, struct object_file *files, in
 	return left;
 }
 
+unsigned int dump_elf_for_offset(const char *filename) {
+  if (elf_version(EV_CURRENT) == EV_NONE) {
+    fprintf(stderr, "Failed to initialize libelf\n");
+    exit(1);
+  }
+
+  FILE *file = fopen(filename, "rb");
+  if (file == NULL) {
+    fprintf(stderr, "Failed to open ELF file\n");
+    exit(1);
+  }
+
+  Elf *elf = elf_begin(fileno(file), ELF_C_READ, NULL);
+  if (elf == NULL) {
+    fprintf(stderr, "Failed to open ELF file\n");
+    exit(1);
+  }
+
+  Elf_Scn *scn = NULL;
+  GElf_Shdr shdr;
+
+#if defined(__x86_64__) || defined(__aarch64__)
+  Elf64_Word entry_offset;
+#else
+  Elf32_Word entry_offset;
+#endif
+  while ((scn = elf_nextscn(elf, scn)) != NULL) {
+    if (gelf_getshdr(scn, &shdr) != &shdr) {
+      fprintf(stderr, "Failed to read ELF header\n");
+      exit(1);
+    }
+
+    if (shdr.sh_type == SHT_PROGBITS && shdr.sh_flags == 6) {
+      entry_offset = shdr.sh_offset;
+#ifdef DEBUG
+      printf("dump_elf_for_offset: %x, %016lx: 0x%016lx\n", shdr.sh_type,
+             shdr.sh_offset, shdr.sh_addr);
+#endif
+      break;
+    }
+  }
+  elf_end(elf);
+  return entry_offset;
+}
+
 static int get_user_func_name(unsigned long vaddr, const char *object_file_path, char *stack_func_name)
 {
 	/*
@@ -241,10 +289,11 @@ static int get_user_func_name(unsigned long vaddr, const char *object_file_path,
 	/*
 		Reading offset
 	*/
-	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, "readelf -l %s | awk '$4==\"E\"{print x};{x=$2}'", object_file_path);
-	fp = popen(cmd, "r");
-	fscanf(fp, "%lx", &offset);
+	// memset(cmd, 0, sizeof(cmd));
+	// sprintf(cmd, "readelf -l %s | awk '$4==\"E\"{print x};{x=$2}'", object_file_path);
+	// fp = popen(cmd, "r");
+	// fscanf(fp, "%lx", &offset);
+	offset = dump_elf_for_offset(object_file_path);
 	paddr = vaddr + offset;
 	pclose(fp);
 	/*
