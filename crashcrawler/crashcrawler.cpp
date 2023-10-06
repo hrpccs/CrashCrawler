@@ -312,7 +312,7 @@ int dump_elf_for_func_symbols(const char *filename, const unsigned long paddr, c
   }
 
   unsigned long func_offset = 0x7f7f7f7f;
-  char * func_name = NULL;
+  char  func_name[NAMELIMIT] = {0};
   for (int idx = 0; idx < symtab_scn_array_size; ++idx) {
     symtab_scn = symtab_scn_array[idx];
 
@@ -338,17 +338,20 @@ int dump_elf_for_func_symbols(const char *filename, const unsigned long paddr, c
       if (GELF_ST_TYPE(symbol->st_info) == STT_FUNC && symbol->st_value != 0) {
 		unsigned long current_addr = (unsigned long)symbol->st_value;
 		if(current_addr < paddr && func_offset < (paddr - current_addr)){
-        func_name =
-            elf_strptr(elf, shdr.sh_link, symbol->st_name);
-		func_offset = paddr - current_addr;
-		}
+			const char * symbol_name =
+				elf_strptr(elf, shdr.sh_link, symbol->st_name);
+			func_offset = paddr - current_addr;
+			strncpy(func_name, symbol_name, NAMELIMIT);
+			func_name[NAMELIMIT - 1] = '\0';
+			// }
+			printf("0x%016lx %s\n", (unsigned long)symbol->st_value, symbol_name);
 #ifdef DEBUG
-        printf("0x%016lx %s\n", (unsigned long)symbol->st_value, symbol_name);
 #endif
+		}
       }
     }
   }
-  if(func_name != nullptr)
+  if(func_offset != 0x7f7f7f7f)
   {
 	sprintf(stack_func_name, "%s+0x%lx", func_name, func_offset);
 	return 0;
