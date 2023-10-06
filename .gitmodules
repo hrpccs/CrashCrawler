@@ -1,0 +1,3 @@
+[submodule "libelf"]
+	path = libelf
+	url = https://github.com/WolfgangSt/libelf.git
