@@ -10,6 +10,7 @@ BASE_DIR=`dirname $SCRIPT_PATH`
 SEGFAULT_PATH="$BASE_DIR/segfault"
 
 CC=$(which gcc)
+# CFLAGS="-fopenmp -fno-omit-frame-pointer"
 CFLAGS="-fopenmp"
 # echo $BASE_DIR
 

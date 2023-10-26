@@ -166,13 +166,13 @@ unsigned int dump_elf_for_offset(const char* filename) {
 
     FILE* file = fopen(filename, "rb");
     if (file == NULL) {
-        fprintf(stderr, "Failed to open ELF file\n");
+        fprintf(stderr, "Failed to open ELF file %s\n",filename);
         exit(1);
     }
 
     Elf* elf = elf_begin(fileno(file), ELF_C_READ, NULL);
     if (elf == NULL) {
-        fprintf(stderr, "Failed to open ELF file\n");
+        fprintf(stderr, "Failed to open ELF file %s\n",filename);
         exit(1);
     }
 
@@ -710,7 +710,6 @@ static int handle_event(void* ctx, void* data, size_t data_sz) {
                                  curr->name[level]);
             }
             files[j].exec_file_path[index] = '\0';
-            // printf("first filepath %s\n", files[j].exec_file_path);
             path_utils.set_inode_path(curr->ino,
                                       std::string(files[j].exec_file_path));
         }
@@ -839,8 +838,8 @@ int main(int argc, char** argv) {
                 mode = atoi(optarg);
                 break;
             default:
-                printf("Usage: %s [-p log_path] [-m 1/2/3 "
-                       "(kprobe_with_path/kprobe_without_path/fentry)]\n",
+                printf("Usage: %s [-p log_path] [-m 1/2/3/4 "
+                       "(kprobe_with_path/kprobe_without_path/fentry/bpf_loop)]\n",
                        argv[0]);
                 exit(EXIT_FAILURE);
         }
@@ -888,8 +887,12 @@ int main(int argc, char** argv) {
             link = bpf_program__attach(skel->progs.fentry__do_exit);
             printf("attach fentry__do_exit\n");
             break;
+        case 4:
+            link = bpf_program__attach(skel->progs.kprobe__do_exit_no_path_bpf_loop);
+            printf("attach kprobe__do_exit_no_path_bpf_loop\n");
+            break;
         default:
-            printf("wrong mode, must be 1,2,3\n");
+            printf("wrong mode, must be 1,2,3,4\n");
             exit(EXIT_FAILURE);
     }
     if (link == NULL) {

@@ -25,6 +25,6 @@ void crashtest_1()
 int main()
 {
     printf("[Segfault] Multiple thread testing\n");
-    crashtest_3();
+    crashtest_1();
     return 0;
 }

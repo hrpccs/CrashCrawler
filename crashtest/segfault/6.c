@@ -21,6 +21,6 @@ void crashtest_1()
 int main()
 {
     printf("[Segfault] Printing the number in string form...\n");
-    crashtest_3();
+    crashtest_1();
     return 0;
 }

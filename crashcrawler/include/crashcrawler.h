@@ -8,9 +8,9 @@
 
 // should get from kernel header ?
 // #define MAX_VMA_ENTRY 51
-#define MAX_VMA_ENTRY 139//max dynamic lib searching level
-#define LEVEL_KPROBE_WITHOUT_PATH 110
-#define LEVEL_KPROBE_WITH_PATH 45
+#define MAX_VMA_ENTRY 300//max dynamic lib searching level
+#define LEVEL_KPROBE_WITHOUT_PATH 50
+#define LEVEL_KPROBE_WITH_PATH 40
 #define MAXLEN_VMA_NAME 64
 #define MAX_LEVEL 8
 

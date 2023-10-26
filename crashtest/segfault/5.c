@@ -18,6 +18,6 @@ void crashtest_1()
 int main()
 {
     printf("[Segfault] Visiting out of range\n");
-    crashtest_3();
+    crashtest_1();
     return 0;
 }
